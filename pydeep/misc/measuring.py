@@ -1,4 +1,5 @@
-"""This module provides functions for measuring like time measuring for executed code.
+"""
+This module provides functions for measuring like time measuring for executed code.
 
 :Version:
     1.1.0
@@ -35,7 +36,7 @@
 
 import datetime
 import time
-import numpy as numx
+import torch
 
 
 def print_progress(step, num_steps, gauge=False, length=50, decimal_place=1):
@@ -56,26 +57,38 @@ def print_progress(step, num_steps, gauge=False, length=50, decimal_place=1):
     :param decimal_place: Number of decimal places to display.
     :type decimal_place: int
     """
-    # jump to line beginning
-    print("\r")
+    # Jump to line beginning
+    print("\r", end="")
+
+    # If gauge=True, print a progress bar
     if gauge:
-        # print gauge
-        print(
-            "=" * int(step * length / num_steps)
-            + ">"
-            + "." * int(length - step * length / num_steps)
-        )
-    # Define where to start printing the difits
-    percent_format = (
-        "%"
-        + str(3 + decimal_place + numx.sign(decimal_place))
-        + "."
-        + str(decimal_place)
-        + "f%%"
-    )
-    # Print formated percentage
-    percent = step * 100.0 / num_steps
+        # Number of '=' characters to show as "done"
+        done = int(step * length / num_steps)
+        # Remainder = '.' characters
+        remain = length - done
+        print("=" * done + ">" + "." * remain)
+
+    # Reproduce the original logic that used:
+    #   3 + decimal_place + numx.sign(decimal_place)
+    # We replace numx.sign(...) with Torch’s sign(...) call.
+    sign_val = torch.sign(
+        torch.tensor(float(decimal_place), dtype=torch.float64)
+    ).item()
+    # sign_val is -1.0, 0.0, or 1.0, so cast to int
+    sign_val = int(sign_val)
+
+    total_len = 3 + decimal_place + sign_val  # e.g. => 5 if decimal_place=1
+    # e.g. => '%5.1f%%' if decimal_place=1 => (width=5, 1 decimal place)
+    percent_format = "%" + str(total_len) + "." + str(decimal_place) + "f%%"
+
+    # Compute the percentage
+    if num_steps == 0:
+        percent = 100.0
+    else:
+        percent = step * 100.0 / num_steps
+
     print(percent_format % percent)
+
     if step == num_steps:
         print("")
 
@@ -87,7 +100,6 @@ class Stopwatch(object):
         """Constructor sets the starting time to the current time.
 
         :Info: Will be overwritten by calling start()!
-
         """
         self.__start_time = datetime.datetime.now()
         self.__end_time = None
@@ -114,10 +126,10 @@ class Stopwatch(object):
 
     def update(self, factor=1.0):
         """| Updates the internal variables.
-            | Factor can be used to sum up not regular events in a loop:
-            | Lets assume you have a loop over 100 sets and only every 10th
-            | step you execute a function, then use update(factor=0.1) to
-            | measure it.
+           | Factor can be used to sum up not regular events in a loop:
+           | For example, if you have a loop over 100 sets and only
+           | every 10th step you execute a function, call update(factor=0.1)
+           | to measure just that fraction.
 
         :param factor: Sums up factor*current interval
         :type factor: float
@@ -171,7 +183,7 @@ class Stopwatch(object):
         return self.__start_time + self.get_expected_interval(iteration, num_iterations)
 
     def get_expected_interval(self, iteration, num_iterations):
-        """Returns the expected interval/Time needed till ending.
+        """Returns the expected interval/time needed until finishing.
 
         :param iteration: Current iteration
         :type iteration: int
@@ -183,6 +195,8 @@ class Stopwatch(object):
         :rtype: timedelta
         """
         self.update()
+        if iteration == 0:
+            return datetime.timedelta(0, 0)
         expected_time = self.__interval + (num_iterations - iteration) * (
             self.__interval / iteration
         )
