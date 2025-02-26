@@ -59,8 +59,8 @@ It extends the matplotlib.pyplot.
 
 import copy
 
-import numpy as numx
-from matplotlib.pyplot import *
+import numpy as np
+import matplotlib.pyplot as plt
 
 from pydeep.preprocessing import rescale_data
 
@@ -190,10 +190,10 @@ def imshow_matrix(matrix, windowtitle, interpolation="nearest"):
     :param interpolation: Interpolation style
     :type interpolation: string
     """
-    figure(windowtitle)  # .suptitle()
-    axis("off")
-    gray()
-    imshow(np.array(matrix, np.float64), interpolation=interpolation)
+    plt.figure(windowtitle)  # .suptitle()
+    plt.axis("off")
+    plt.gray()
+    plt.imshow(np.array(matrix, np.float64), interpolation=interpolation)
 
 
 def imshow_plot(matrix, windowtitle):
@@ -205,9 +205,9 @@ def imshow_plot(matrix, windowtitle):
     :param windowtitle: Figure title
     :type windowtitle: string
     """
-    figure().suptitle(windowtitle)
-    gray()
-    plot(np.array(matrix, np.float64))
+    plt.figure().suptitle(windowtitle)
+    plt.gray()
+    plt.plot(np.array(matrix, np.float64))
 
 
 def imshow_histogram(
@@ -233,8 +233,8 @@ def imshow_histogram(
     :param log_scale: Use logarithm Y-scaling
     :type log_scale: bool
     """
-    figure().suptitle(windowtitle)
-    hist(matrix, bins=num_bins, normed=normed, cumulative=cumulative, log=log_scale)
+    plt.figure().suptitle(windowtitle)
+    plt.hist(matrix, bins=num_bins, normed=normed, cumulative=cumulative, log=log_scale)
 
 
 def plot_2d_weights(
@@ -264,9 +264,9 @@ def plot_2d_weights(
     width = 0.02
     hw = 0.0
     if np.sqrt(bias[0, 0] * bias[0, 0] + bias[0, 1] * bias[0, 1]) > hw:
-        if bias_color is "random":
+        if bias_color == "random":
             colorrgb = [np.random.rand(), np.random.rand(), np.random.rand()]
-            arrow(
+            plt.arrow(
                 0.0,
                 0.0,
                 bias[0, 0],
@@ -277,7 +277,7 @@ def plot_2d_weights(
                 head_width=hw,
             )
         else:
-            arrow(
+            plt.arrow(
                 0.0,
                 0.0,
                 bias[0, 0],
@@ -288,14 +288,14 @@ def plot_2d_weights(
                 head_width=hw,
             )
 
-    if color is "random":
+    if color == "random":
         for c in range(weights.shape[1]):
             colorrgb = [np.random.rand(), np.random.rand(), np.random.rand()]
             if (
                 np.sqrt(weights[0, c] * weights[0, c] + weights[1, c] * weights[1, c])
                 > hw
             ):
-                arrow(
+                plt.arrow(
                     bias[0, 0],
                     bias[0, 1],
                     scaling_factor * weights[0, c],
@@ -311,7 +311,7 @@ def plot_2d_weights(
                 np.sqrt(weights[0, c] * weights[0, c] + weights[1, c] * weights[1, c])
                 > hw
             ):
-                arrow(
+                plt.arrow(
                     bias[0, 0],
                     bias[0, 1],
                     scaling_factor * weights[0, c],
@@ -338,7 +338,7 @@ def plot_2d_data(data, alpha=0.1, color="navy", point_size=5):
     :param point_size: Size of the data points.
     :type point_size: int
     """
-    scatter(
+    plt.scatter(
         data[:, 0],
         data[:, 1],
         s=point_size,
@@ -415,21 +415,21 @@ def plot_2d_contour(
     z = probability_function(data.T).reshape(dist_x, dist_y)
 
     # Set colormap ans scaling behaviour
-    set_cmap(colormap)
+    plt.set_cmap(colormap)
 
     # Plot contours
-    if stylev is "filled":
-        contourf(
+    if stylev == "filled":
+        plt.contourf(
             x,
             y,
             z,
             levels=list(np.linspace(np.min(z), np.max(z), levels)),
             origin="lower",
         )
-    elif stylev is "image":
-        imshow(z, origin="lower", extent=value_range)
+    elif stylev == "image":
+        plt.imshow(z, origin="lower", extent=value_range)
     else:
-        contour(
+        plt.contour(
             x,
             y,
             z,
@@ -532,8 +532,8 @@ def hidden_activation(rbm, data, states=False):
     """
     activation = rbm.probability_h_given_v(data)
     if states:
-        activation = numx.round(activation)
-    return activation, numx.mean(activation, axis=0), numx.std(activation, axis=0)
+        activation = np.round(activation)
+    return activation, np.mean(activation, axis=0), np.std(activation, axis=0)
 
 
 def reorder_filter_by_hidden_activation(rbm, data):
@@ -548,8 +548,8 @@ def reorder_filter_by_hidden_activation(rbm, data):
     :return: RBM with reordered weights.
     :rtype: RBM object.
     """
-    probs = numx.sum(rbm.probability_h_given_v(data), axis=0)
-    index = numx.argsort(probs, axis=0)
+    probs = np.sum(rbm.probability_h_given_v(data), axis=0)
+    index = np.argsort(probs, axis=0)
     rbm_ordered = copy.deepcopy(rbm)
     for i in range(probs.shape[0]):
         u = probs.shape[0] - i - 1
@@ -602,14 +602,14 @@ def generate_samples(
         if i % stepsize == 0:
             if whitening is not None:
                 if sample_states:
-                    result = numx.vstack((result, whitening.unproject(vis_states)))
+                    result = np.vstack((result, whitening.unproject(vis_states)))
                 else:
-                    result = numx.vstack((result, whitening.unproject(vis_probs)))
+                    result = np.vstack((result, whitening.unproject(vis_probs)))
             else:
                 if sample_states:
-                    result = numx.vstack((result, vis_states))
+                    result = np.vstack((result, vis_states))
                 else:
-                    result = numx.vstack((result, vis_probs))
+                    result = np.vstack((result, vis_probs))
     return tile_matrix_rows(
         result.T,
         v1,
@@ -636,12 +636,14 @@ def imshow_filter_tuning_curve(filters, num_of_ang=40):
     max_wavelength = int(np.sqrt(input_dim))
     frq_rsp, _ = filter_frequency_response(filters, num_of_ang)
     ang_rsp, _ = filter_angle_response(filters, num_of_ang)
-    figure().suptitle("Tuning curves")
+    plt.figure().suptitle("Tuning curves")
     for plot_idx in range(output_dim):
-        subplot(output_dim, 2, 2 * plot_idx + 1)
-        plot(range(2, max_wavelength + 1), frq_rsp[:, plot_idx])
-        subplot(output_dim, 2, 2 * plot_idx + 2)
-        plot(np.array(range(0, num_of_ang)) * np.pi / num_of_ang, ang_rsp[:, plot_idx])
+        plt.subplot(output_dim, 2, 2 * plot_idx + 1)
+        plt.plot(range(2, max_wavelength + 1), frq_rsp[:, plot_idx])
+        plt.subplot(output_dim, 2, 2 * plot_idx + 2)
+        plt.plot(
+            np.array(range(0, num_of_ang)) * np.pi / num_of_ang, ang_rsp[:, plot_idx]
+        )
 
 
 def imshow_filter_optimal_gratings(filters, opt_frq, opt_ang):
@@ -704,13 +706,13 @@ def imshow_filter_frequency_angle_histogram(opt_frq, opt_ang, max_wavelength=14)
     :param max_wavelength: Maximal wavelength.
     :type max_wavelength: int
     """
-    figure().suptitle("Filter Frequency histogram \t\t\t Filter Angle " + "histogram")
-    subplot(1, 2, 1)
-    hist(opt_frq, max_wavelength - 1, (2, 14), normed=1)
-    ylim((0, 1))
-    subplot(1, 2, 2)
-    hist(opt_ang, 20, (0, np.pi), normed=1)
-    ylim((0, 1))
+    plt.figure.suptitle("Filter Frequency histogram \t\t\t Filter Angle " + "histogram")
+    plt.subplot(1, 2, 1)
+    plt.hist(opt_frq, max_wavelength - 1, (2, 14), normed=1)
+    plt.ylim((0, 1))
+    plt.subplot(1, 2, 2)
+    plt.hist(opt_ang, 20, (0, np.pi), normed=1)
+    plt.ylim((0, 1))
 
 
 def filter_frequency_and_angle(filters, num_of_angles=40):
@@ -729,7 +731,7 @@ def filter_frequency_and_angle(filters, num_of_angles=40):
     """
     rsp_max_ang, rsp_max_ang_idx = filter_frequency_response(filters, num_of_angles)
     opt_frq = rsp_max_ang.argmax(0) + 2
-    opt_ang = numx.diag(rsp_max_ang_idx[opt_frq - 2][:]) * numx.pi / num_of_angles
+    opt_ang = np.diag(rsp_max_ang_idx[opt_frq - 2][:]) * np.pi / num_of_angles
     return opt_frq, opt_ang
 
 
@@ -746,32 +748,32 @@ def filter_frequency_response(filters, num_of_angles=40):
     :rtype: numpy array, numpy array
     """
     input_dim = filters.shape[0]  # input dimensionality, 196
-    max_wavelength = int(numx.sqrt(filters.shape[0]))
+    max_wavelength = int(np.sqrt(filters.shape[0]))
     output_dim = filters.shape[1]
-    frq_rsp = numx.zeros([max_wavelength - 1, output_dim])
-    frq_rsp_ang_idx = numx.zeros([max_wavelength - 1, output_dim])
+    frq_rsp = np.zeros([max_wavelength - 1, output_dim])
+    frq_rsp_ang_idx = np.zeros([max_wavelength - 1, output_dim])
 
-    vec_theta = numx.array(range(0, num_of_angles))
-    vec_theta = vec_theta * numx.pi / num_of_angles
-    sinmatrix = numx.tile(numx.sin(vec_theta), (input_dim, 1))
-    cosmatrix = numx.tile(numx.cos(vec_theta), (input_dim, 1))
+    vec_theta = np.array(range(0, num_of_angles))
+    vec_theta = vec_theta * np.pi / num_of_angles
+    sinmatrix = np.tile(np.sin(vec_theta), (input_dim, 1))
+    cosmatrix = np.tile(np.cos(vec_theta), (input_dim, 1))
 
-    vec_xy = numx.array(range(0, input_dim))
-    vec_x = numx.floor_divide(vec_xy, max_wavelength)
+    vec_xy = np.array(range(0, input_dim))
+    vec_x = np.floor_divide(vec_xy, max_wavelength)
     vec_y = vec_xy + 1 - vec_x * max_wavelength
-    xmatrix = numx.tile(vec_x.transpose(), (num_of_angles, 1))
-    ymatrix = numx.tile(vec_y.transpose(), (num_of_angles, 1))
+    xmatrix = np.tile(vec_x.transpose(), (num_of_angles, 1))
+    ymatrix = np.tile(vec_y.transpose(), (num_of_angles, 1))
     umatrix = sinmatrix.transpose() * xmatrix + cosmatrix.transpose() * ymatrix
 
     for frq_idx in range(2, max_wavelength + 1):
         alpha = float(1) / float(frq_idx)
         # sine gratings of all angles under a specific freq.
-        gratingmatrix_sin = numx.sin(2 * numx.pi * alpha * umatrix)
+        gratingmatrix_sin = np.sin(2 * np.pi * alpha * umatrix)
         # cosine gratings of all angles under a specific freq.
-        gratingmatrix_cos = numx.cos(2 * numx.pi * alpha * umatrix)
+        gratingmatrix_cos = np.cos(2 * np.pi * alpha * umatrix)
         rsp_fix_frq = (
-            numx.dot(gratingmatrix_sin, filters) ** 2
-            + numx.dot(gratingmatrix_cos, filters) ** 2
+            np.dot(gratingmatrix_sin, filters) ** 2
+            + np.dot(gratingmatrix_cos, filters) ** 2
         )
         frq_rsp[frq_idx - 2] = rsp_fix_frq.max(0)
         frq_rsp_ang_idx[frq_idx - 2] = rsp_fix_frq.argmax(0)
@@ -792,29 +794,29 @@ def filter_angle_response(filters, num_of_angles=40):
     :rtype: numpy array, numpy array
     """
     input_dim = filters.shape[0]
-    max_wavelength = int(numx.sqrt(filters.shape[0]))
+    max_wavelength = int(np.sqrt(filters.shape[0]))
     output_dim = filters.shape[1]
-    ang_rsp = numx.zeros([num_of_angles, output_dim])
-    ang_rsp_frq_idx = numx.zeros([num_of_angles, output_dim])
+    ang_rsp = np.zeros([num_of_angles, output_dim])
+    ang_rsp_frq_idx = np.zeros([num_of_angles, output_dim])
 
-    vec_frq = numx.array(range(2, max_wavelength + 1))
+    vec_frq = np.array(range(2, max_wavelength + 1))
     vec_frq = float(1) / vec_frq
-    frqmatrix = numx.tile(vec_frq * numx.pi * 2, (input_dim, 1))
+    frqmatrix = np.tile(vec_frq * np.pi * 2, (input_dim, 1))
 
-    vec_xy = numx.array(range(0, input_dim))
-    vec_x = numx.floor_divide(vec_xy, max_wavelength)
+    vec_xy = np.array(range(0, input_dim))
+    vec_x = np.floor_divide(vec_xy, max_wavelength)
     vec_y = vec_xy + 1 - vec_x * max_wavelength
-    xmatrix = numx.tile(vec_x.transpose(), (max_wavelength - 1, 1))
-    ymatrix = numx.tile(vec_y.transpose(), (max_wavelength - 1, 1))
+    xmatrix = np.tile(vec_x.transpose(), (max_wavelength - 1, 1))
+    ymatrix = np.tile(vec_y.transpose(), (max_wavelength - 1, 1))
 
     for ang_idx in range(0, num_of_angles):
-        theta = ang_idx * numx.pi / num_of_angles
-        umatrix = numx.sin(theta) * xmatrix + numx.cos(theta) * ymatrix
-        gratingmatrix_sin = numx.sin(frqmatrix.transpose() * umatrix)
-        gratingmatrix_cos = numx.cos(frqmatrix.transpose() * umatrix)
+        theta = ang_idx * np.pi / num_of_angles
+        umatrix = np.sin(theta) * xmatrix + np.cos(theta) * ymatrix
+        gratingmatrix_sin = np.sin(frqmatrix.transpose() * umatrix)
+        gratingmatrix_cos = np.cos(frqmatrix.transpose() * umatrix)
         rsp_fix_ang = (
-            numx.dot(gratingmatrix_sin, filters) ** 2
-            + numx.dot(gratingmatrix_cos, filters) ** 2
+            np.dot(gratingmatrix_sin, filters) ** 2
+            + np.dot(gratingmatrix_cos, filters) ** 2
         )
         ang_rsp[ang_idx] = rsp_fix_ang.max(0)
         ang_rsp_frq_idx[ang_idx] = rsp_fix_ang.argmax(0)
@@ -839,10 +841,10 @@ def calculate_amari_distance(matrix_one, matrix_two, version=1):
     """
     if matrix_one.shape != matrix_two.shape:
         return "Two matrices must have the same shape."
-    product_matrix = numx.abs(numx.dot(matrix_one, numx.linalg.inv(matrix_two)))
+    product_matrix = np.abs(np.dot(matrix_one, np.linalg.inv(matrix_two)))
 
-    product_matrix_max_col = numx.array(product_matrix.max(0))
-    product_matrix_max_row = numx.array(product_matrix.max(1))
+    product_matrix_max_col = np.array(product_matrix.max(0))
+    product_matrix_max_row = np.array(product_matrix.max(1))
 
     n = product_matrix.shape[0]
 
@@ -855,8 +857,8 @@ def calculate_amari_distance(matrix_one, matrix_two, version=1):
             models for sparse overcomplete representations J MACH LEARN RES,
             2003, 4, 1235--1260
         """
-        amari_distance = product_matrix / numx.tile(product_matrix_max_col, (n, 1))
-        amari_distance += product_matrix / numx.tile(product_matrix_max_row, (n, 1)).T
+        amari_distance = product_matrix / np.tile(product_matrix_max_col, (n, 1))
+        amari_distance += product_matrix / np.tile(product_matrix_max_row, (n, 1)).T
         amari_distance = amari_distance.sum() - 2 * n * n
     else:
         """ Formula from ESLII
@@ -866,7 +868,7 @@ def calculate_amari_distance(matrix_one, matrix_two, version=1):
             Bach, F. R.; Jordan, M. I. Kernel Independent Component
             Analysis, J MACH LEARN RES, 2002, 3, 1--48
         """
-        amari_distance = product_matrix / numx.tile(product_matrix_max_col, (n, 1))
-        amari_distance += product_matrix / numx.tile(product_matrix_max_row, (n, 1)).T
+        amari_distance = product_matrix / np.tile(product_matrix_max_col, (n, 1))
+        amari_distance += product_matrix / np.tile(product_matrix_max_row, (n, 1)).T
         amari_distance = amari_distance.sum() / (2 * n) - 1
     return amari_distance
