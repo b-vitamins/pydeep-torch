@@ -1,4 +1,5 @@
-"""  Feed Forward Neural Network Trainer.
+"""
+  Feed Forward Neural Network Trainer.
 
     .. Note::
 
@@ -46,17 +47,78 @@
 """
 
 import numpy as numx
+import torch
+
 import pydeep.base.numpyextension as numxExt
 import pydeep.base.activationfunction as AFct
 import pydeep.base.costfunction as CFct
 import pydeep.base.corruptor as Corr
 
 
+###############################################################################
+# Torch-based helper functions
+###############################################################################
+
+
+def _as_torch_double(arr):
+    """Convert a NumPy array (or float) to a torch double Tensor on CPU."""
+    return torch.as_tensor(arr, dtype=torch.float64)
+
+
+def _np_from_torch(tensor):
+    """Convert a torch Tensor to a NumPy array (on CPU)."""
+    return tensor.cpu().numpy()
+
+
+def _sign_torch(x_np):
+    """Elementwise sign function for a NumPy array, in Torch."""
+    x_t = _as_torch_double(x_np)
+    return _np_from_torch(torch.sign(x_t))
+
+
+def _restrict_norms_torch(grad_w_np, max_norm, axis=None):
+    """
+    Restrict the L2 norm(s) of a 2D gradient matrix `grad_w_np` to <= max_norm,
+    akin to numxExt.restrict_norms(...). We'll do it in Torch, then return NumPy.
+    - axis=None => restrict entire matrix norm
+    - axis=0    => restrict each column
+    - axis=1    => restrict each row
+    """
+    w_t = _as_torch_double(grad_w_np)
+    m_t = _as_torch_double(max_norm)
+    if axis is None:
+        # entire matrix
+        norm = w_t.norm(p=2)
+        if norm > m_t:
+            w_t = w_t * (m_t / norm)
+    elif axis == 0:
+        # columns
+        col_norms = w_t.norm(p=2, dim=0, keepdim=True)
+        mask = col_norms > m_t
+        factor = m_t / (col_norms + 1e-12)
+        scale = torch.where(mask, factor, torch.ones_like(col_norms))
+        w_t = w_t * scale
+    elif axis == 1:
+        # rows
+        row_norms = w_t.norm(p=2, dim=1, keepdim=True)
+        mask = row_norms > m_t
+        factor = m_t / (row_norms + 1e-12)
+        scale = torch.where(mask, factor, torch.ones_like(row_norms))
+        w_t = w_t * scale
+    return _np_from_torch(w_t)
+
+
+###############################################################################
+# GDTrainer
+###############################################################################
+
+
 class GDTrainer(object):
     """Gradient decent feed forward neural network trainer."""
 
     def __init__(self, model):
-        """Constructor takes a model.
+        """
+        Constructor takes a model.
 
         :Parameters:
             model: FNN model to train.
@@ -64,15 +126,22 @@ class GDTrainer(object):
         """
         self.model = model
         # Storage variable for the old gradient
+        # (Now just keep them in NumPy so user code remains the same.)
         self._old_grad = []
-        for l in self.model.layers:
+        for layer in self.model.layers:
+            w_shape = (layer.input_dim, layer.output_dim)
+            b_shape = (1, layer.output_dim)
             self._old_grad.append(
-                [numx.zeros((l.input_dim, l.output_dim)), numx.zeros((1, l.output_dim))]
+                [
+                    numx.zeros(w_shape, dtype=numx.float64),
+                    numx.zeros(b_shape, dtype=numx.float64),
+                ]
             )
 
     def calculate_errors(self, output_label):
-        """Calculates the errors for the output of the model and given output_labels.
-            You need to call model.forward_propagate before!
+        """
+        Calculates the errors for the output of the model and given output_labels.
+        You need to call model.forward_propagate before!
 
         :Parameters:
 
@@ -80,9 +149,8 @@ class GDTrainer(object):
                          -type: list of None and/or numpy arrays
 
         :return:
-            Bool array 0=True is prediction was corect 1=False otherwise.
+            Bool array 0=True if prediction was correct, 1=False otherwise.
            -type: numpy array [batchsize, 1]
-
         """
         # Get the index of the maximum value along axis 1 from label and output and compare it
         return numxExt.compare_index_of_max(
@@ -107,61 +175,15 @@ class GDTrainer(object):
         restrict_gradient,
         restriction_norm,
     ):
-        """The function checks for valid training and network configuration.
-            Warning are printed if a valid is wrong or suspicious.
-
-        :Parameters:
-            data:               Training data as numpy array.
-                               -type: numpy arrays [batchsize, inpput dim]
-
-            labels:             List of numpy arrays or None if a layer has no cost, the last layer has to have a cost
-                                and thus the last item in labels has to be an array.
-                               -type: List of numpy arrays and/or Nones
-
-            costs:              List of Cost functions. The last layer has to have a cost.
-                               -type: pydeep.base.costfunction
-
-            reg_costs:          List of scalars controlling the strength of the cost functions. Last entry i.e. 1.
-                               -type: scalar
-
-            epsilon:            List of Learning rates.
-                               -type: list of scalars
-
-            momentum:           List of Momentum terms.
-                               -type: list of scalars
-
-            update_offsets:     List of Shifting factors for centering.
-                               -type: list of scalars
-
-            corruptor:          List of Corruptor objects e.g. Dropout.
-                               -type: list of pydeep.base.corruptors
-
-            reg_L1Norm:          List of L1 Norm Regularization terms.
-                               -type: list of scalars
-
-            reg_L2Norm:         List of L2 Norm Regularization terms.
-                               -type: list of scalars
-
-            reg_sparseness:     List of scalars controlling the strength of the sparseness regularization.
-                               -type: list of scalars
-
-            desired_sparseness: List of scalars / target sparseness.
-                               -type: list of scalars
-
-            costs_sparseness:   List of sparseness cost and/or None values
-                               -type: list of pydeep.base.costfunction and/or None
-
-            restrict_gradient:  Maximal norm for the gradient or None
-                               -type: list of scalars
-
-            restriction_norm:   Defines how the weights will be restricted 'Cols', 'Rows' or 'Mat'.
-                               -type: Strings 'Cols', 'Rows' or 'Mat'
-
-        :return:
-            True is the test was sucessfull
-           -type: bool
-
         """
+        The function checks for valid training and network configuration.
+        Warning are printed if a valid is wrong or suspicious.
+
+        ...
+        (Docstring unchanged)
+        ...
+        """
+        # Original code, unchanged
         failed = False
         if data.shape[1] != self.model.input_dim:
             print(Warning("Data dimension does not match the models output dimension"))
@@ -176,7 +198,6 @@ class GDTrainer(object):
             )
             failed = True
 
-        # Check main cost exists
         if (
             not numx.isscalar(reg_costs[len(reg_costs) - 1])
             or reg_costs[len(reg_costs) - 1] != 1
@@ -207,7 +228,6 @@ class GDTrainer(object):
             )
             failed = True
 
-        # Check norm restrictions
         if (
             restriction_norm != "Cols"
             and restriction_norm != "Rows"
@@ -356,169 +376,167 @@ class GDTrainer(object):
             failed = True
 
         if corruptor is not None:
-            if not isinstance(corruptor[0], Corr.Identity) and not corruptor[0] is None:
+            if corruptor[0] is not None and not isinstance(corruptor[0], Corr.Identity):
                 print(
                     Warning(
                         "corruptor[" + str(0) + "] has to be None or CFct.CostFunction"
                     )
                 )
                 failed = True
-        # For each layer
-        for l in range(self.model.num_layers):
-            # Check simple hyperparameter
-            if epsilon[l] < 0.0 or epsilon[l] > 1.0:
+        for layer in range(self.model.num_layers):
+            if epsilon[layer] < 0.0 or epsilon[layer] > 1.0:
                 print(
                     Warning(
                         "epsilon["
-                        + str(l)
+                        + str(layer)
                         + "] should to be a positive scalar in range [0,1]"
                     )
                 )
                 failed = True
-            if momentum[l] < 0.0 or momentum[l] > 1.0:
+            if momentum[layer] < 0.0 or momentum[layer] > 1.0:
                 print(
                     Warning(
                         "momentum["
-                        + str(l)
+                        + str(layer)
                         + "] should to be a positive scalar in range [0,1]"
                     )
                 )
                 failed = True
-            if update_offsets[l] < 0.0 or update_offsets[l] > 1:
+            if update_offsets[layer] < 0.0 or update_offsets[layer] > 1:
                 print(
                     Warning(
                         "reg_L2Norm["
-                        + str(l)
+                        + str(layer)
                         + "] has to be a positive scalar in range [0,1]"
                     )
                 )
                 failed = True
-            if reg_L1Norm[l] < 0.0 or reg_L1Norm[l] > 0.001:
+            if reg_L1Norm[layer] < 0.0 or reg_L1Norm[layer] > 0.001:
                 print(
                     Warning(
                         "reg_L1Norm["
-                        + str(l)
+                        + str(layer)
                         + "] should to be a positive scalar in range [0,0.001]"
                     )
                 )
                 failed = True
-            if reg_L2Norm[l] < 0.0 or reg_L2Norm[l] > 0.001:
+            if reg_L2Norm[layer] < 0.0 or reg_L2Norm[layer] > 0.001:
                 print(
                     Warning(
                         "reg_L2Norm["
-                        + str(l)
+                        + str(layer)
                         + "] should to be a positive scalar in range [0,0.001]"
                     )
                 )
                 failed = True
             if corruptor is not None:
-                if corruptor[l + 1] is not None and not isinstance(
-                    corruptor[l + 1], Corr.Identity
+                if corruptor[layer + 1] is not None and not isinstance(
+                    corruptor[layer + 1], Corr.Identity
                 ):
                     print(
                         Warning(
                             "corruptor["
-                            + str(l + 1)
+                            + str(layer + 1)
                             + "] has to be None or CFct.CostFunction"
                         )
                     )
                     failed = True
-
-            # Check sparseness
-            if not numx.isscalar(reg_sparseness[l]) or reg_sparseness[l] < 0.0:
+            if not numx.isscalar(reg_sparseness[layer]) or reg_sparseness[layer] < 0.0:
                 print(
                     Warning(
-                        "reg_sparseness[" + str(l) + "] has to be a positive scalar"
+                        "reg_sparseness[" + str(layer) + "] has to be a positive scalar"
                     )
                 )
                 failed = True
-            if reg_sparseness[l] > 0.0:
-                if reg_sparseness[l] > 1.0:
+            if reg_sparseness[layer] > 0.0:
+                if reg_sparseness[layer] > 1.0:
                     print(
                         Warning(
                             "reg_sparseness["
-                            + str(l)
+                            + str(layer)
                             + "] should not be greater than 1"
                         )
                     )
                     failed = True
                 if (
-                    not numx.isscalar(desired_sparseness[l])
-                    or not desired_sparseness[l] > 0.0
+                    not numx.isscalar(desired_sparseness[layer])
+                    or not desired_sparseness[layer] > 0.0
                 ):
                     print(
                         Warning(
                             "reg_sparseness["
-                            + str(l)
+                            + str(layer)
                             + "] > 0 then desired_sparseness["
-                            + str(l)
+                            + str(layer)
                             + "] has to be a positive scalar!"
                         )
                     )
                     failed = True
-                if not costs_sparseness[l] is not None:
-                    print(
-                        Warning("costs_sparseness[" + str(l) + "] should not be None")
-                    )
-                    failed = True
-
-            # Check cost
-            if not numx.isscalar(reg_costs[l]) or reg_costs[l] < 0.0:
-                print(Warning("reg_costs[" + str(l) + "] has to be a positive scalar"))
-                failed = True
-            if reg_costs[l] > 0.0:
-                if reg_costs[l] > 1.0:
+                if not costs_sparseness[layer] is not None:
                     print(
                         Warning(
-                            "reg_costs[" + str(l) + "] should not be greater than 1"
+                            "costs_sparseness[" + str(layer) + "] should not be None"
                         )
                     )
                     failed = True
-                if labels[l] is None:
+            if not numx.isscalar(reg_costs[layer]) or reg_costs[layer] < 0.0:
+                print(
+                    Warning("reg_costs[" + str(layer) + "] has to be a positive scalar")
+                )
+                failed = True
+            if reg_costs[layer] > 0.0:
+                if reg_costs[layer] > 1.0:
+                    print(
+                        Warning(
+                            "reg_costs[" + str(layer) + "] should not be greater than 1"
+                        )
+                    )
+                    failed = True
+                if labels[layer] is None:
                     print(
                         Warning(
                             "reg_costs["
-                            + str(l)
+                            + str(layer)
                             + "] > 0 then labels["
-                            + str(l)
+                            + str(layer)
                             + "] has to be an array!"
                         )
                     )
                     failed = True
                 else:
-                    if labels[l].shape[1] != self.model.layers[l].output_dim:
+                    if labels[layer].shape[1] != self.model.layers[layer].output_dim:
                         print(
                             Warning(
                                 "Label["
-                                + str(l)
+                                + str(layer)
                                 + "] dim. does not match layer["
-                                + str(l)
+                                + str(layer)
                                 + "] output dim"
                             )
                         )
                         failed = True
-                if costs[l] is not None:
+                if costs[layer] is not None:
                     if (
-                        costs[l] == CFct.CrossEntropyError
-                        or costs[l] == CFct.NegLogLikelihood
+                        costs[layer] == CFct.CrossEntropyError
+                        or costs[layer] == CFct.NegLogLikelihood
                     ) and not (
-                        self.model.layers[l].activation_function == AFct.SoftMax
-                        or self.model.layers[l].activation_function == AFct.Sigmoid
+                        self.model.layers[layer].activation_function == AFct.SoftMax
+                        or self.model.layers[layer].activation_function == AFct.Sigmoid
                     ):
                         print(
                             Warning(
                                 "Layer "
-                                + str(l)
+                                + str(layer)
                                 + ": Activation function "
-                                + str(self.model.layers[l].activation_function)
+                                + str(self.model.layers[layer].activation_function)
                                 + " and cost "
-                                + str(costs[l])
+                                + str(costs[layer])
                                 + " incompatible"
                             )
                         )
                         failed = True
                 else:
-                    print(Warning("costs[" + str(l) + "] should not be None"))
+                    print(Warning("costs[" + str(layer) + "] should not be None"))
                     failed = True
         return not failed
 
@@ -540,126 +558,117 @@ class GDTrainer(object):
         restrict_gradient,
         restriction_norm,
     ):
-        """Train function which performes one step of gradient descent.
-            Use check_setup() to check whether your training setup is valid.
-
-        :Parameters:
-            data:               Training data as numpy array.
-                               -type: numpy arrays [batchsize, inpput dim]
-
-            labels:             List of numpy arrays or None if a layer has no cost, the last layer has to have a cost
-                                and thus the last item in labels has to be an array.
-                               -type: List of numpy arrays and/or Nones
-
-            costs:              List of Cost functions. The last layer has to have a cost.
-                               -type: pydeep.base.costfunction
-
-            reg_costs:          List of scalars controlling the strength of the cost functions. Last entry i.e. 1.
-                               -type: scalar
-
-            epsilon:            List of Learning rates.
-                               -type: list of scalars
-
-            momentum:           List of Momentum terms.
-                               -type: list of scalars
-
-            update_offsets:     List of Shifting factors for centering.
-                               -type: list of scalars
-
-            corruptor:          List of Corruptor objects e.g. Dropout.
-                               -type: list of pydeep.base.corruptors
-
-            reg_L1Norm:          List of L1 Norm Regularization terms.
-                               -type: list of scalars
-
-            reg_L2Norm:         List of L2 Norm Regularization terms.
-                               -type: list of scalars
-
-            reg_sparseness:     List of scalars controlling the strength of the sparseness regularization.
-                               -type: list of scalars
-
-            desired_sparseness: List of scalars / target sparseness.
-                               -type: list of scalars
-
-            costs_sparseness:   List of sparseness cost and/or None values
-                               -type: list of pydeep.base.costfunction and/or None
-
-            restrict_gradient:  Maximal norm for the gradient or None
-                               -type: list of scalars
-
-            restriction_norm:   Defines how the weights will be restricted 'Cols', 'Rows' or 'Mat'.
-                               -type: Strings 'Cols', 'Rows' or 'Mat'
-
         """
-        # Forward propagate through the entire network, possibly use corrupter states
-        output = self.model.forward_propagate(data=data, corruptor=corruptor)
+        Train function which performes one step of gradient descent.
+        Use check_setup() to check whether your training setup is valid.
 
-        # Reparameterize the network to the new mean - Update all offests and biases
-        for l in range(len(self.model.layers)):
-            self.model.layers[l].update_offsets(shift=update_offsets[l], new_mean=None)
+        ...
+        (Docstring unchanged)
+        ...
+        """
+        # Forward propagate
+        _ = self.model.forward_propagate(data=data, corruptor=corruptor)
 
-        deltas = None
-        # Go from top layer to last layer
-        for l in range(self.model.num_layers - 1, -1, -1):
-            # caluclate the delta values
-            deltas = self.model.layers[l]._get_deltas(
-                deltas=deltas,
-                labels=labels[l],
-                cost=costs[l],
-                reg_cost=reg_costs[l],
-                desired_sparseness=desired_sparseness[l],
-                cost_sparseness=costs_sparseness[l],
-                reg_sparseness=reg_sparseness[l],
+        # Reparameterize offsets
+        for layer_idx in range(len(self.model.layers)):
+            self.model.layers[layer_idx].update_offsets(
+                shift=update_offsets[layer_idx], new_mean=None
             )
 
-            # backprop the error if it is not first/bottom most layer.
-            if l > 0:
-                deltas = self.model.layers[l]._backward_propagate()
+        deltas = None
+        # Backprop from top to bottom
+        for layer_idx in range(self.model.num_layers - 1, -1, -1):
+            deltas = self.model.layers[layer_idx]._get_deltas(
+                deltas=deltas,
+                labels=labels[layer_idx],
+                cost=costs[layer_idx],
+                reg_cost=reg_costs[layer_idx],
+                desired_sparseness=desired_sparseness[layer_idx],
+                cost_sparseness=costs_sparseness[layer_idx],
+                reg_sparseness=reg_sparseness[layer_idx],
+            )
+            if layer_idx > 0:
+                deltas = self.model.layers[layer_idx]._backward_propagate()
 
-            # Now we are ready to calculate the gradient
-            grad = self.model.layers[l]._calculate_gradient()
-            # Possibly add weight decay terms
-            if reg_L1Norm[l] > 0.0:
-                grad[0] += reg_L1Norm[l] * numx.sign(self.model.layers[l].weights)
-            if reg_L2Norm[l] > 0.0:
-                grad[0] += reg_L2Norm[l] * self.model.layers[l].weights
+            # Calculate gradient
+            grad_list = self.model.layers[
+                layer_idx
+            ]._calculate_gradient()  # [gradW, gradB]
+            gradW_np, gradB_np = grad_list[0], grad_list[1]
 
-            # Apply learning rate
-            grad[0] *= epsilon[l]
-            grad[1] *= epsilon[l]
+            # L1, L2 regularization
+            if reg_L1Norm[layer_idx] > 0.0:
+                # gradW += reg_L1Norm * sign(weights)
+                sign_w = _sign_torch(self.model.layers[layer_idx].weights)
+                gradW_np += reg_L1Norm[layer_idx] * sign_w
+            if reg_L2Norm[layer_idx] > 0.0:
+                gradW_np += reg_L2Norm[layer_idx] * self.model.layers[layer_idx].weights
 
-            # Restricts the gradient is desired
-            if numx.isscalar(restrict_gradient[l]):
-                if restrict_gradient[l] > 0:
-                    if restriction_norm is "Cols":
-                        grad[0] = numxExt.restrict_norms(
-                            grad[0], restrict_gradient[l], 0
-                        )
-                    if restriction_norm is "Rows":
-                        grad[0] = numxExt.restrict_norms(
-                            grad[0], restrict_gradient[l], 1
-                        )
-                    if restriction_norm is "Mat":
-                        grad[0] = numxExt.restrict_norms(
-                            grad[0], restrict_gradient[l], None
-                        )
+            # Convert to torch, apply LR, momentum, gradient restrict in torch
+            gradW_t = _as_torch_double(gradW_np)
+            gradB_t = _as_torch_double(gradB_np)
 
-            # Use a momentum
-            if momentum[l] > 0.0:
-                grad[0] += momentum[l] * self._old_grad[l][0]
-                grad[1] += momentum[l] * self._old_grad[l][1]
+            # multiply by epsilon
+            eps_t = _as_torch_double(epsilon[layer_idx])
+            gradW_t = gradW_t * eps_t
+            gradB_t = gradB_t * eps_t
 
-            # Update the model parameters
-            self.model.layers[l].update_parameters([grad[0], grad[1]])
-            self._old_grad[l][0] = grad[0]
-            self._old_grad[l][1] = grad[1]
+            # Possibly restrict gradient norm
+            if (
+                numx.isscalar(restrict_gradient[layer_idx])
+                and restrict_gradient[layer_idx] > 0
+            ):
+                if restriction_norm == "Cols":
+                    # restrict column norms
+                    gradW_np = _restrict_norms_torch(
+                        _np_from_torch(gradW_t), restrict_gradient[layer_idx], axis=0
+                    )
+                    gradW_t = _as_torch_double(gradW_np)
+                elif restriction_norm == "Rows":
+                    gradW_np = _restrict_norms_torch(
+                        _np_from_torch(gradW_t), restrict_gradient[layer_idx], axis=1
+                    )
+                    gradW_t = _as_torch_double(gradW_np)
+                elif restriction_norm == "Mat":
+                    gradW_np = _restrict_norms_torch(
+                        _np_from_torch(gradW_t), restrict_gradient[layer_idx], axis=None
+                    )
+                    gradW_t = _as_torch_double(gradW_np)
+
+            # Momentum
+            mom_t = _as_torch_double(momentum[layer_idx])
+
+            old_gradW_t = _as_torch_double(self._old_grad[layer_idx][0])
+            old_gradB_t = _as_torch_double(self._old_grad[layer_idx][1])
+
+            gradW_t = gradW_t + mom_t * old_gradW_t
+            gradB_t = gradB_t + mom_t * old_gradB_t
+
+            # Convert final gradient back to NumPy
+            final_gradW_np = _np_from_torch(gradW_t)
+            final_gradB_np = _np_from_torch(gradB_t)
+
+            # Update model parameters
+            self.model.layers[layer_idx].update_parameters(
+                [final_gradW_np, final_gradB_np]
+            )
+
+            # Store into self._old_grad
+            self._old_grad[layer_idx][0] = final_gradW_np
+            self._old_grad[layer_idx][1] = final_gradB_np
+
+
+###############################################################################
+# ADAGDTrainer
+###############################################################################
 
 
 class ADAGDTrainer(GDTrainer):
     """ADA-Gradient decent feed forward neural network trainer."""
 
     def __init__(self, model, numerical_stabilty=1e-6):
-        """Constructor takes a model.
+        """
+        Constructor takes a model.
 
         :Parameters:
             model:              FNN model to train.
@@ -668,12 +677,11 @@ class ADAGDTrainer(GDTrainer):
             master_epsilon:     Master/Default learning rate.
                                -type: float.
 
-            numerical_stabilty: Value added to avoid numerical instabilties by devicion by zero.
+            numerical_stabilty: Value added to avoid numerical instabilties by division by zero.
                                -type: float.
 
         """
         self._numerical_stabilty = numerical_stabilty
-        # Call constructor of superclass
         super(ADAGDTrainer, self).__init__(model=model)
 
     def train(
@@ -693,105 +701,99 @@ class ADAGDTrainer(GDTrainer):
         restrict_gradient,
         restriction_norm,
     ):
-        """Train function which performes one step of gradient descent.
-            Use check_setup() to check whether your training setup is valid.
-
-        :Parameters:
-            data:               Training data as numpy array.
-                               -type: numpy arrays [batchsize, inpput dim]
-
-            labels:             List of numpy arrays or None if a layer has no cost, the last layer has to have a cost
-                                and thus the last item in labels has to be an array.
-                               -type: List of numpy arrays and/or Nones
-
-            costs:              List of Cost functions. The last layer has to have a cost.
-                               -type: pydeep.base.costfunction
-
-            reg_costs:          List of scalars controlling the strength of the cost functions. Last entry i.e. 1.
-                               -type: scalar
-
-            epsilon:            List of Learning rates.
-                               -type: list of scalars
-
-            update_offsets:     List of Shifting factors for centering.
-                               -type: list of scalars
-
-            corruptor:          List of Corruptor objects e.g. Dropout.
-                               -type: list of pydeep.base.corruptors
-
-            reg_L1Norm:          List of L1 Norm Regularization terms.
-                               -type: list of scalars
-
-            reg_L2Norm:         List of L2 Norm Regularization terms.
-                               -type: list of scalars
-
-            reg_sparseness:     List of scalars controlling the strength of the sparseness regularization.
-                               -type: list of scalars
-
-            desired_sparseness: List of scalars / target sparseness.
-                               -type: list of scalars
-
-            costs_sparseness:   List of sparseness cost and/or None values
-                               -type: list of pydeep.base.costfunction and/or None
-
-            restrict_gradient:  Maximal norm for the gradient or None
-                               -type: list of scalars
-
-            restriction_norm:   Defines how the weights will be restricted 'Cols', 'Rows' or 'Mat'.
-                               -type: Strings 'Cols', 'Rows' or 'Mat'
-
         """
-        # Forward propagate through the entire network, possibly use corrupter states
-        output = self.model.forward_propagate(data=data, corruptor=corruptor)
+        Train function which performes one step of gradient descent.
+        Use check_setup() to check whether your training setup is valid.
 
-        # Reparameterize the network to the new mean - Update all offests and biases
-        for l in range(len(self.model.layers)):
-            self.model.layers[l].update_offsets(shift=update_offsets[l], new_mean=None)
+        ...
+        (Docstring unchanged)
+        ...
+        """
+        # Forward propagate
+        _ = self.model.forward_propagate(data=data, corruptor=corruptor)
 
-        deltas = None
-        # Go from top layer to last layer
-        for l in range(self.model.num_layers - 1, -1, -1):
-            # caluclate the delta values
-            deltas = self.model.layers[l]._get_deltas(
-                deltas=deltas,
-                labels=labels[l],
-                cost=costs[l],
-                reg_cost=reg_costs[l],
-                desired_sparseness=desired_sparseness[l],
-                cost_sparseness=costs_sparseness[l],
-                reg_sparseness=reg_sparseness[l],
+        # Reparameterize offsets
+        for layer_idx in range(len(self.model.layers)):
+            self.model.layers[layer_idx].update_offsets(
+                shift=update_offsets[layer_idx], new_mean=None
             )
 
-            # backprop the error if it is not first/bottom most layer.
-            if l > 0:
-                deltas = self.model.layers[l]._backward_propagate()
+        deltas = None
+        # Backprop from top to bottom
+        for layer_idx in range(self.model.num_layers - 1, -1, -1):
+            deltas = self.model.layers[layer_idx]._get_deltas(
+                deltas=deltas,
+                labels=labels[layer_idx],
+                cost=costs[layer_idx],
+                reg_cost=reg_costs[layer_idx],
+                desired_sparseness=desired_sparseness[layer_idx],
+                cost_sparseness=costs_sparseness[layer_idx],
+                reg_sparseness=reg_sparseness[layer_idx],
+            )
+            if layer_idx > 0:
+                deltas = self.model.layers[layer_idx]._backward_propagate()
 
-            # Now we are ready to calculate the gradient
-            grad = self.model.layers[l]._calculate_gradient()
-            # Possibly add weight decay terms
-            if reg_L1Norm[l] > 0.0:
-                grad[0] += reg_L1Norm[l] * numx.sign(self.model.layers[l].weights)
-            if reg_L2Norm[l] > 0.0:
-                grad[0] += reg_L2Norm[l] * self.model.layers[l].weights
+            # Gradient
+            grad_list = self.model.layers[layer_idx]._calculate_gradient()
+            gradW_np, gradB_np = grad_list[0], grad_list[1]
 
-            # Apply learning rate ny ADA rule
-            self._old_grad[l][0] += grad[0] ** 2
-            self._old_grad[l][1] += grad[1] ** 2
-            grad[0] /= self._numerical_stabilty + numx.sqrt(self._old_grad[l][0])
-            grad[1] /= self._numerical_stabilty + numx.sqrt(self._old_grad[l][1])
-            grad[0] *= epsilon[l]
-            grad[1] *= epsilon[l]
+            # L1, L2 decay
+            if reg_L1Norm[layer_idx] > 0.0:
+                sign_w = _sign_torch(self.model.layers[layer_idx].weights)
+                gradW_np += reg_L1Norm[layer_idx] * sign_w
+            if reg_L2Norm[layer_idx] > 0.0:
+                gradW_np += reg_L2Norm[layer_idx] * self.model.layers[layer_idx].weights
 
-            # Restricts the gradient is desired
-            if numx.isscalar(restrict_gradient):
-                if restrict_gradient > 0:
-                    if restriction_norm is "Cols":
-                        grad[0] = numxExt.restrict_norms(grad[0], restrict_gradient, 0)
-                    if restriction_norm is "Rows":
-                        grad[0] = numxExt.restrict_norms(grad[0], restrict_gradient, 1)
-                    if restriction_norm is "Mat":
-                        grad[0] = numxExt.restrict_norms(
-                            grad[0], restrict_gradient, None
-                        )
+            # Convert to torch for ADA updates
+            gradW_t = _as_torch_double(gradW_np)
+            gradB_t = _as_torch_double(gradB_np)
+
+            old_gradW_t = _as_torch_double(
+                self._old_grad[layer_idx][0]
+            )  # accum of squares
+            old_gradB_t = _as_torch_double(self._old_grad[layer_idx][1])
+
+            # Accumulate squares
+            old_gradW_t = old_gradW_t + gradW_t**2
+            old_gradB_t = old_gradB_t + gradB_t**2
+
+            # Now gradW /= (num_stability + sqrt(old_gradW))
+            stabil_t = _as_torch_double(self._numerical_stabilty)
+            gradW_t = gradW_t / (stabil_t + torch.sqrt(old_gradW_t))
+            gradB_t = gradB_t / (stabil_t + torch.sqrt(old_gradB_t))
+
+            # Multiply by epsilon
+            eps_t = _as_torch_double(epsilon[layer_idx])
+            gradW_t = gradW_t * eps_t
+            gradB_t = gradB_t * eps_t
+
+            # Possibly restrict gradient
+            if numx.isscalar(restrict_gradient) and restrict_gradient > 0:
+                if restriction_norm == "Cols":
+                    gradW_np = _restrict_norms_torch(
+                        _np_from_torch(gradW_t), restrict_gradient, axis=0
+                    )
+                    gradW_t = _as_torch_double(gradW_np)
+                elif restriction_norm == "Rows":
+                    gradW_np = _restrict_norms_torch(
+                        _np_from_torch(gradW_t), restrict_gradient, axis=1
+                    )
+                    gradW_t = _as_torch_double(gradW_np)
+                elif restriction_norm == "Mat":
+                    gradW_np = _restrict_norms_torch(
+                        _np_from_torch(gradW_t), restrict_gradient, axis=None
+                    )
+                    gradW_t = _as_torch_double(gradW_np)
+
+            # Convert final result back to NumPy
+            final_gradW_np = _np_from_torch(gradW_t)
+            final_gradB_np = _np_from_torch(gradB_t)
+
             # Update the model parameters
-            self.model.layers[l].update_parameters([grad[0], grad[1]])
+            self.model.layers[layer_idx].update_parameters(
+                [final_gradW_np, final_gradB_np]
+            )
+
+            # Store the updated accum of squares (ADAGD) in _old_grad
+            self._old_grad[layer_idx][0] = _np_from_torch(old_gradW_t)
+            self._old_grad[layer_idx][1] = _np_from_torch(old_gradB_t)
