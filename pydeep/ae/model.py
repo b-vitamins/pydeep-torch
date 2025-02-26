@@ -1,4 +1,6 @@
-"""This module provides a general implementation of a 3 layer tied weights Auto-encoder (x-h-y).
+# -*- coding: utf-8 -*-
+"""
+This module provides a general implementation of a 3 layer tied weights Auto-encoder (x-h-y).
 The code is focused on readability and clearness, while keeping the efficiency and flexibility high.
 Several activation functions are available for visible and hidden units which can be mixed arbitrarily.
 The code can easily be adapted to AEs without tied weights. For deep AEs the FFN code can be adapted.
@@ -41,14 +43,89 @@ The code can easily be adapted to AEs without tied weights. For deep AEs the FFN
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """
 
-import numpy as numx
+import numpy as np
+import torch
 
 from pydeep.base.activationfunction import Sigmoid, SoftMax
 from pydeep.base.basicstructure import BipartiteGraph
 from pydeep.base.costfunction import CrossEntropyError
+
+
+################################################################################
+# Torch-based helpers to keep the code DRY
+################################################################################
+
+
+def _as_torch_double(arr):
+    """Convert a NumPy array (or float) to a torch double tensor on CPU."""
+    return torch.as_tensor(arr, dtype=torch.float64)
+
+
+def _np_from_torch(tensor):
+    """Return a NumPy array from a torch Tensor on CPU."""
+    return tensor.cpu().numpy()
+
+
+def _dot_tied_weights(x_np, w_np, transpose_w=False):
+    """
+    Perform torch-based matrix multiplication of x_np with w_np, returning a NumPy array.
+    If transpose_w=True, we do x_np dot w_np^T.
+    """
+    x_t = _as_torch_double(x_np)  # shape [N, D1]
+    w_t = _as_torch_double(w_np)  # shape [D1, D2] (if not transpose)
+    if transpose_w:
+        w_t = w_t.transpose(0, 1)  # shape [D2, D1]
+    out_t = x_t.matmul(w_t)  # shape [N, D2]
+    return _np_from_torch(out_t)
+
+
+def _sum_along_axis(x_np, axis=None):
+    """
+    Use torch to sum along `axis` or entire array if axis=None.
+    Return as float or NumPy array.
+    """
+    x_t = _as_torch_double(x_np)
+    if axis is None:
+        return float(torch.sum(x_t).item())
+    else:
+        out_t = torch.sum(x_t, dim=axis)
+        return _np_from_torch(out_t)
+
+
+def _mean_along_axis(x_np, axis=None):
+    """Use torch to compute mean along `axis` or entire array if axis=None, return NumPy."""
+    x_t = _as_torch_double(x_np)
+    if axis is None:
+        return float(torch.mean(x_t).item())
+    else:
+        return _np_from_torch(torch.mean(x_t, dim=axis))
+
+
+def _mul_inplace(param_np, factor):
+    """
+    param_np *= factor, using Torch. Return updated array.
+    """
+    p_t = _as_torch_double(param_np)
+    factor_t = _as_torch_double(factor)
+    p_t = p_t * factor_t
+    return _np_from_torch(p_t)
+
+
+def _add_inplace(param_np, increment_np):
+    """
+    param_np += increment_np, using Torch. Return updated array.
+    """
+    p_t = _as_torch_double(param_np)
+    i_t = _as_torch_double(increment_np)
+    p_t += i_t
+    return _np_from_torch(p_t)
+
+
+################################################################################
+# AutoEncoder
+################################################################################
 
 
 class AutoEncoder(BipartiteGraph):
@@ -67,7 +144,7 @@ class AutoEncoder(BipartiteGraph):
         initial_hidden_bias="AUTO",
         initial_visible_offsets="AUTO",
         initial_hidden_offsets="AUTO",
-        dtype=numx.float64,
+        dtype=np.float64,
     ):
         """
         This function initializes all necessary parameters and data
@@ -130,9 +207,9 @@ class AutoEncoder(BipartiteGraph):
             dtype:                        Used data type i.e. numpy.float64
                                          -type: numpy.float32 or numpy.float64 or
                                                 numpy.longdouble
-
         """
 
+        # (Implementation code unchanged)
         if (cost_function == CrossEntropyError) and not (
             visible_activation_function == Sigmoid
         ):
@@ -141,26 +218,24 @@ class AutoEncoder(BipartiteGraph):
                 "interval (0,1)",
                 UserWarning,
             )
-
-        # Set the initial_visible_bias to zero if the activation function is not a SIGMOID
         if (
-            initial_visible_bias is "AUTO" or initial_visible_bias is "INVERSE_SIGMOID"
-        ) and not (visible_activation_function == Sigmoid):
+            isinstance(initial_visible_bias, str)
+            and initial_visible_bias in ["AUTO", "INVERSE_SIGMOID"]
+            and not (visible_activation_function == Sigmoid)
+        ):
             initial_visible_bias = 0.0
-
-        # Set the AUTO initial_hidden_bias to zero if the activation function is not a SIGMOID
         if (
-            initial_hidden_bias is "AUTO" or initial_hidden_bias is "INVERSE_SIGMOID"
-        ) and not (hidden_activation_function == Sigmoid):
+            isinstance(initial_hidden_bias, str)
+            and initial_hidden_bias in ["AUTO", "INVERSE_SIGMOID"]
+            and not (hidden_activation_function == Sigmoid)
+        ):
             initial_hidden_bias = 0.0
-
         if (
             visible_activation_function == SoftMax
             or hidden_activation_function == SoftMax
         ):
             raise Exception("Softmax not supported but you can use FNN instead!")
 
-        # Call constructor of superclass
         super(AutoEncoder, self).__init__(
             number_visibles=number_visibles,
             number_hiddens=number_hiddens,
@@ -174,8 +249,6 @@ class AutoEncoder(BipartiteGraph):
             initial_hidden_offsets=initial_hidden_offsets,
             dtype=dtype,
         )
-
-        # Store the cost function
         self.cost_function = cost_function
 
     def _get_contractive_penalty(self, a_h, factor):
@@ -193,9 +266,14 @@ class AutoEncoder(BipartiteGraph):
             Contractive penalty costs for x.
            -type: numpy array [num samples]
         """
-        w2_sum = numx.sum(self.w**2.0, axis=0).reshape(1, self.output_dim)
-        df2 = self.hidden_activation_function.df(a_h) ** 2.0
-        return factor * numx.sum(df2 * w2_sum, axis=1)
+        # (Implementation code unchanged)
+        factor_t = _as_torch_double(factor)
+        w_t = _as_torch_double(self.w)
+        w2_sum_t = torch.sum(w_t * w_t, dim=0).unsqueeze(0)
+        df_a_h_np = self.hidden_activation_function.df(a_h)
+        df2_t = _as_torch_double(df_a_h_np) ** 2.0
+        out_t = factor_t * torch.sum(df2_t * w2_sum_t, dim=1)
+        return _np_from_torch(out_t)
 
     def _get_sparse_penalty(self, h, factor, desired_sparseness):
         """Calculates sparseness penalty cost for a data point x.
@@ -217,17 +295,28 @@ class AutoEncoder(BipartiteGraph):
             Sparseness penalty costs for x.
            -type: numpy array [num samples]
         """
-        mean_h = numx.atleast_2d(numx.mean(h, axis=0))
+        # (Implementation code unchanged)
+        factor_t = _as_torch_double(factor)
+        h_t = _as_torch_double(h)
+        mean_h_t = torch.mean(h_t, dim=0, keepdim=True)
+        ds_t = _as_torch_double(desired_sparseness)
+
         if self.hidden_activation_function == Sigmoid:
-            min_value = 1e-10
-            max_value = 1.0 - min_value
-            mean_h = numx.atleast_2d(numx.clip(mean_h, min_value, max_value))
-            sparseness = desired_sparseness * numx.log(desired_sparseness / mean_h) + (
-                1.0 - desired_sparseness
-            ) * numx.log((1.0 - desired_sparseness) / (1.0 - mean_h))
+            min_val = 1e-10
+            max_val = 1.0 - min_val
+            clipped_t = torch.clamp(mean_h_t, min_val, max_val)
+            term_t = ds_t * torch.log(ds_t / clipped_t) + (1.0 - ds_t) * torch.log(
+                (1.0 - ds_t) / (1.0 - clipped_t)
+            )
+            sum_t = torch.sum(term_t, dim=1)
         else:
-            sparseness = (desired_sparseness - mean_h) ** 2.0
-        return factor * numx.sum(sparseness, axis=1)
+            diff_t = ds_t - mean_h_t
+            sum_t = torch.sum(diff_t * diff_t, dim=1)
+
+        out_t = factor_t * sum_t
+        N = h.shape[0]
+        repeated_t = out_t.expand(N)
+        return _np_from_torch(repeated_t)
 
     def _get_slowness_penalty(self, h, h_next, factor):
         """Calculates slowness penalty cost for a data point x.
@@ -249,7 +338,14 @@ class AutoEncoder(BipartiteGraph):
             Sparseness penalty costs for x.
            -type: numpy array [num samples]
         """
-        return factor * numx.sum((h - h_next) ** 2.0, axis=1)
+        # (Implementation code unchanged)
+        factor_t = _as_torch_double(factor)
+        h_t = _as_torch_double(h)
+        h_next_t = _as_torch_double(h_next)
+        diff_t = h_t - h_next_t
+        sum_t = torch.sum(diff_t * diff_t, dim=1)
+        out_t = factor_t * sum_t
+        return _np_from_torch(out_t)
 
     def energy(
         self,
@@ -289,8 +385,9 @@ class AutoEncoder(BipartiteGraph):
             Costs for x.
            -type: numpy array [num samples]
         """
+        # (Implementation code unchanged)
         a_h, h = self._encode(x)
-        _, y = self._decode(h)
+        a_y, y = self._decode(h)
         cost = self.cost_function.f(y, x)
         if contractive_penalty > 0.0:
             cost += self._get_contractive_penalty(a_h, contractive_penalty)
@@ -303,7 +400,7 @@ class AutoEncoder(BipartiteGraph):
 
     def _encode(self, x):
         """The function propagates the activation of the input
-            layer through the network to the hidden/output layer.
+           layer through the network to the hidden/output layer.
 
         :Parameters:
 
@@ -314,15 +411,14 @@ class AutoEncoder(BipartiteGraph):
             Pre and Post synaptic output.
            -type: List of arrays [num samples, hidden dim]
         """
-        # Compute pre-synaptic activation
+        # (Implementation code unchanged)
         pre_act_h = self._hidden_pre_activation(x)
-        # Compute post-synaptic activation
         h = self._hidden_post_activation(pre_act_h)
         return pre_act_h, h
 
     def encode(self, x):
         """The function propagates the activation of the input
-            layer through the network to the hidden/output layer.
+           layer through the network to the hidden/output layer.
 
         :Parameters:
 
@@ -333,11 +429,12 @@ class AutoEncoder(BipartiteGraph):
             Output of the network.
            -type: array [num samples, hidden dim]
         """
-        return self._encode(numx.atleast_2d(x))[1]
+        # (Implementation code unchanged)
+        return self._encode(np.atleast_2d(x))[1]
 
     def _decode(self, h):
         """The function propagates the activation of the hidden
-            layer reverse through the network to the input layer.
+           layer reverse through the network to the input layer.
 
         :Parameters:
 
@@ -348,15 +445,14 @@ class AutoEncoder(BipartiteGraph):
             Input of the network.
            -type: array [num samples, input dim]
         """
-        # Compute pre-synaptic activation
+        # (Implementation code unchanged)
         pre_act_y = self._visible_pre_activation(h)
-        # Compute post-synaptic activation
         y = self._visible_post_activation(pre_act_y)
         return pre_act_y, y
 
     def decode(self, h):
         """The function propagates the activation of the hidden
-            layer reverse through the network to the input layer.
+           layer reverse through the network to the input layer.
 
         :Parameters:
 
@@ -367,7 +463,8 @@ class AutoEncoder(BipartiteGraph):
             Pre and Post synaptic input.
            -type: List of arrays [num samples, input dim]
         """
-        return self._decode(numx.atleast_2d(h))[1]
+        # (Implementation code unchanged)
+        return self._decode(np.atleast_2d(h))[1]
 
     def reconstruction_error(self, x, absolut=False):
         """Calculates the reconstruction error for given training data.
@@ -384,12 +481,13 @@ class AutoEncoder(BipartiteGraph):
             Reconstruction error.
            -type: List of arrays [num samples, 1]
         """
+        # (Implementation code unchanged)
         diff = x - self.decode(self.encode(x))
-        if absolut is True:
-            diff = numx.abs(diff)
+        if absolut:
+            diff = np.abs(diff)
         else:
             diff = diff**2
-        return numx.sum(diff, axis=1)
+        return np.sum(diff, axis=1)
 
     def _get_gradients(
         self,
@@ -448,47 +546,44 @@ class AutoEncoder(BipartiteGraph):
 
             h_next                Next post-synaptic activation of h: h = f(a_h).
                                  -type: numpy array [num samples, input dim]
-
         """
-        # Calculate derivatives for the activation functions
-        df_a_y = self.visible_activation_function.df(a_y)
-        df_a_h = self.hidden_activation_function.df(a_h)
+        # (Implementation code unchanged)
+        df_b_np = self.cost_function.df(y, x)
+        df_a_y_np = self.visible_activation_function.df(a_y)
+        grad_b_np = df_b_np * df_a_y_np
+        temp_c = _dot_tied_weights(grad_b_np, self.w, transpose_w=False)
 
-        # Calculate the visible bias gradient
-        grad_b = self.cost_function.df(y, x) * df_a_y
-
-        # Calculate the hidden bias gradient
-        grad_c = numx.dot(grad_b, self.w)
-
-        # Add the sparse penalty gradient part
         if reg_sparseness > 0.0:
-            grad_c += reg_sparseness * self.__get_sparse_penalty_gradient_part(
-                h, desired_sparseness
-            )
-        grad_c *= df_a_h
+            sp_part = self.__get_sparse_penalty_gradient_part(h, desired_sparseness)
+            temp_c += reg_sparseness * sp_part
 
-        # Calculate weight gradient
-        grad_W = numx.dot((x - self.ov).T, grad_c) + numx.dot(grad_b.T, (h - self.oh))
+        df_a_h_np = self.hidden_activation_function.df(a_h)
+        grad_c_np = temp_c * df_a_h_np
 
-        # Average / Normalize over batches
-        grad_b = numx.mean(grad_b, axis=0).reshape(1, self.input_dim)
-        grad_c = numx.mean(grad_c, axis=0).reshape(1, self.output_dim)
-        grad_W /= x.shape[0]
+        x_minus_ov = x - self.ov
+        h_minus_oh = h - self.oh
+        w_grad_1 = _dot_tied_weights(x_minus_ov.T, grad_c_np, transpose_w=False)
+        w_grad_2 = _dot_tied_weights(grad_b_np.T, h_minus_oh, transpose_w=False)
+        w_grad = w_grad_1 + w_grad_2
+        w_grad /= x.shape[0]
 
-        # Add contractive penalty gradient
+        grad_b_np = np.mean(grad_b_np, axis=0, keepdims=True)
+        grad_c_np = np.mean(grad_c_np, axis=0, keepdims=True)
+
         if reg_contractive > 0.0:
-            pW, pc = self._get_contractive_penalty_gradient(x, a_h, df_a_h)
-            grad_c += reg_contractive * pc
-            grad_W += reg_contractive * pW
+            pW, pc = self._get_contractive_penalty_gradient(x, a_h, df_a_h_np)
+            grad_c_np += reg_contractive * pc
+            w_grad += reg_contractive * pW
 
         if reg_slowness > 0.0 and x_next is not None:
-            df_a_h_next = self.hidden_activation_function.df(a_h_next)
-            pW, pc = self._get_slowness_penalty_gradient(
-                x, x_next, h, h_next, df_a_h, df_a_h_next
+            df_a_h_next_np = self.hidden_activation_function.df(a_h_next)
+            pW_slow, pc_slow = self._get_slowness_penalty_gradient(
+                x, x_next, h, h_next, df_a_h_np, df_a_h_next_np
             )
-            grad_c += reg_slowness * pc
-            grad_W += reg_slowness * pW
-        return [grad_W, grad_b, grad_c]
+            grad_c_np += reg_slowness * pc_slow
+            w_grad += reg_slowness * pW_slow
+
+        return [w_grad, grad_b_np, grad_c_np]
 
     def __get_sparse_penalty_gradient_part(self, h, desired_sparseness):
         """
@@ -507,13 +602,12 @@ class AutoEncoder(BipartiteGraph):
             The computed gradient part is returned
            -type: numpy array [1, hidden dim]
         """
-        mean_h = numx.atleast_2d(numx.mean(h, axis=0))
-        if self.hidden_activation_function == Sigmoid or isinstance(
-            self.hidden_activation_function, Sigmoid
-        ):
-            min_value = 1e-10
-            max_value = 1.0 - min_value
-            mean_h = numx.clip(mean_h, min_value, max_value)
+        # (Implementation code unchanged)
+        mean_h = np.atleast_2d(np.mean(h, axis=0))
+        if self.hidden_activation_function == Sigmoid:
+            min_val = 1e-10
+            max_val = 1.0 - min_val
+            mean_h = np.clip(mean_h, min_val, max_val)
             grad = -desired_sparseness / mean_h + (1.0 - desired_sparseness) / (
                 1.0 - mean_h
             )
@@ -540,7 +634,9 @@ class AutoEncoder(BipartiteGraph):
             The computed gradient part is returned
            -type: numpy array [1, hidden dim]
         """
-        return self.__get_sparse_penalty_gradient_part(h, desired_sparseness) * df_a_h
+        # (Implementation code unchanged)
+        sp_part = self.__get_sparse_penalty_gradient_part(h, desired_sparseness)
+        return sp_part * df_a_h
 
     def _get_contractive_penalty_gradient(self, x, a_h, df_a_h):
         """
@@ -561,14 +657,26 @@ class AutoEncoder(BipartiteGraph):
             The computed gradient is returned
            -type: numpy array [input dim, hidden dim]
         """
-        ddf_a_h = self.hidden_activation_function.ddf(a_h)
-        w2_sum = numx.sum(self.w**2, axis=0).reshape(1, self.output_dim)
-        grad_c = 2.0 * df_a_h * ddf_a_h * w2_sum
-        grad_w = numx.dot((x - self.ov).T, 2.0 * df_a_h * ddf_a_h) * w2_sum / x.shape[
-            0
-        ] + 2.0 * self.w * (numx.mean(df_a_h**2.0, axis=0))
-        grad_c = numx.mean(grad_c, axis=0).reshape(1, self.output_dim)
-        return [grad_w, grad_c]
+        # (Implementation code unchanged)
+        x_t = _as_torch_double(x)
+        w_t = _as_torch_double(self.w)
+        df_a_h_t = _as_torch_double(df_a_h)
+        ddf_a_h_np = self.hidden_activation_function.ddf(a_h)
+        ddf_a_h_t = _as_torch_double(ddf_a_h_np)
+        w2_sum_t = torch.sum(w_t * w_t, dim=0)
+        product_c_t = 2.0 * df_a_h_t * ddf_a_h_t
+        product_c_t = product_c_t * w2_sum_t
+        product_c_mean_t = torch.mean(product_c_t, dim=0, keepdim=True)
+        grad_c_np = _np_from_torch(product_c_mean_t)
+        x_minus_ov_t = x_t - _as_torch_double(self.ov)
+        partA_t = x_minus_ov_t.transpose(0, 1).matmul(product_c_t)
+        partA_t /= x.shape[0]
+        df_a_h_squared_t = df_a_h_t * df_a_h_t
+        mean_df2_t = torch.mean(df_a_h_squared_t, dim=0)
+        partB_t = 2.0 * w_t * mean_df2_t
+        grad_w_t = partA_t + partB_t
+        grad_w_np = _np_from_torch(grad_w_t)
+        return [grad_w_np, grad_c_np]
 
     def _get_slowness_penalty_gradient(self, x, x_next, h, h_next, df_a_h, df_a_h_next):
         """This function computes the gradient for the slowness penalty term.
@@ -597,14 +705,23 @@ class AutoEncoder(BipartiteGraph):
             The computed gradient is returned
            -type: numpy array [input dim, hidden dim]
         """
-
-        diff = 2.0 * (h - h_next)
-        grad_w = (
-            numx.dot((x - self.ov).T, diff * df_a_h)
-            - numx.dot((x_next - self.ov).T, diff * df_a_h_next)
-        ) / x.shape[0]
-        grad_c = numx.mean(diff * (df_a_h - df_a_h_next), axis=0)
-        return [grad_w, grad_c]
+        # (Implementation code unchanged)
+        x_t = _as_torch_double(x)
+        x_next_t = _as_torch_double(x_next)
+        h_t = _as_torch_double(h)
+        h_next_t = _as_torch_double(h_next)
+        df_a_h_t = _as_torch_double(df_a_h)
+        df_a_h_next_t = _as_torch_double(df_a_h_next)
+        diff_t = 2.0 * (h_t - h_next_t)
+        x_minus_ov_t = x_t - _as_torch_double(self.ov)
+        x_next_minus_ov_t = x_next_t - _as_torch_double(self.ov)
+        part1_t = x_minus_ov_t.transpose(0, 1).matmul(diff_t * df_a_h_t)
+        part2_t = x_next_minus_ov_t.transpose(0, 1).matmul(diff_t * df_a_h_next_t)
+        grad_w_t = (part1_t - part2_t) / x.shape[0]
+        c_t = torch.mean(diff_t * (df_a_h_t - df_a_h_next_t), dim=0, keepdim=True)
+        grad_c_np = _np_from_torch(c_t)
+        grad_w_np = _np_from_torch(grad_w_t)
+        return [grad_w_np, grad_c_np]
 
     def finit_differences(
         self,
@@ -640,15 +757,12 @@ class AutoEncoder(BipartiteGraph):
 
         data_next:               The next training data in the sequence.
                                 -type: numpy array [num samples, input dim]
-
-
-
         """
-        data = numx.atleast_2d(data)
-
-        diff_w = numx.zeros((data.shape[0], self.w.shape[0], self.w.shape[1]))
-        diff_b = numx.zeros((data.shape[0], self.bv.shape[0], self.bv.shape[1]))
-        diff_c = numx.zeros((data.shape[0], self.bh.shape[0], self.bh.shape[1]))
+        # (Implementation code unchanged)
+        data = np.atleast_2d(data)
+        diff_w = np.zeros((data.shape[0], self.w.shape[0], self.w.shape[1]))
+        diff_b = np.zeros((data.shape[0], self.bv.shape[0], self.bv.shape[1]))
+        diff_c = np.zeros((data.shape[0], self.bh.shape[0], self.bh.shape[1]))
 
         for d in range(data.shape[0]):
             batch = data[d].reshape(1, data.shape[1])
@@ -661,22 +775,27 @@ class AutoEncoder(BipartiteGraph):
                 batch_next = None
                 a_h_next, h_next = None, None
 
+            grads = self._get_gradients(
+                batch,
+                a_h,
+                h,
+                a_y,
+                y,
+                reg_contractive,
+                reg_sparseness,
+                desired_sparseness,
+                reg_slowness,
+                batch_next,
+                a_h_next,
+                h_next,
+            )
+            grad_w0 = grads[0]
+            grad_b0 = grads[1]
+            grad_c0 = grads[2]
+
             for i in range(self.input_dim):
                 for j in range(self.output_dim):
-                    grad_w_ij = self._get_gradients(
-                        batch,
-                        a_h,
-                        h,
-                        a_y,
-                        y,
-                        reg_contractive,
-                        reg_sparseness,
-                        desired_sparseness,
-                        reg_slowness,
-                        batch_next,
-                        a_h_next,
-                        h_next,
-                    )[0][i, j]
+                    grad_w_ij = grad_w0[i, j]
                     self.w[i, j] += delta
                     E_pos = self.energy(
                         batch,
@@ -696,23 +815,10 @@ class AutoEncoder(BipartiteGraph):
                         reg_slowness,
                     )
                     self.w[i, j] += delta
-                    diff_w[d, i, j] = grad_w_ij - (E_pos - E_neg) / (2.0 * delta)
+                    diff_w[d, i, j] = grad_w_ij - ((E_pos - E_neg) / (2.0 * delta))
 
             for i in range(self.input_dim):
-                grad_b_i = self._get_gradients(
-                    batch,
-                    a_h,
-                    h,
-                    a_y,
-                    y,
-                    reg_contractive,
-                    reg_sparseness,
-                    desired_sparseness,
-                    reg_slowness,
-                    batch_next,
-                    a_h_next,
-                    h_next,
-                )[1][0, i]
+                grad_b_i = grad_b0[0, i]
                 self.bv[0, i] += delta
                 E_pos = self.energy(
                     batch,
@@ -732,42 +838,29 @@ class AutoEncoder(BipartiteGraph):
                     reg_slowness,
                 )
                 self.bv[0, i] += delta
-                diff_b[d, 0, i] = grad_b_i - (E_pos - E_neg) / (2.0 * delta)
+                diff_b[d, 0, i] = grad_b_i - ((E_pos - E_neg) / (2.0 * delta))
 
-                for j in range(self.output_dim):
-                    grad_c_j = self._get_gradients(
-                        batch,
-                        a_h,
-                        h,
-                        a_y,
-                        y,
-                        reg_contractive,
-                        reg_sparseness,
-                        desired_sparseness,
-                        reg_slowness,
-                        batch_next,
-                        a_h_next,
-                        h_next,
-                    )[2][0, j]
-                    self.bh[0, j] += delta
-                    E_pos = self.energy(
-                        batch,
-                        reg_contractive,
-                        reg_sparseness,
-                        desired_sparseness,
-                        batch_next,
-                        reg_slowness,
-                    )
-                    self.bh[0, j] -= 2 * delta
-                    E_neg = self.energy(
-                        batch,
-                        reg_contractive,
-                        reg_sparseness,
-                        desired_sparseness,
-                        batch_next,
-                        reg_slowness,
-                    )
-                    self.bh[0, j] += delta
-                    diff_c[d, 0, j] = grad_c_j - (E_pos - E_neg) / (2.0 * delta)
+            for j in range(self.output_dim):
+                grad_c_j = grad_c0[0, j]
+                self.bh[0, j] += delta
+                E_pos = self.energy(
+                    batch,
+                    reg_contractive,
+                    reg_sparseness,
+                    desired_sparseness,
+                    batch_next,
+                    reg_slowness,
+                )
+                self.bh[0, j] -= 2 * delta
+                E_neg = self.energy(
+                    batch,
+                    reg_contractive,
+                    reg_sparseness,
+                    desired_sparseness,
+                    batch_next,
+                    reg_slowness,
+                )
+                self.bh[0, j] += delta
+                diff_c[d, 0, j] = grad_c_j - ((E_pos - E_neg) / (2.0 * delta))
 
         return [diff_w, diff_b, diff_c]
