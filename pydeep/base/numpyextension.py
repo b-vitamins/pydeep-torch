@@ -52,7 +52,7 @@ interface and invariants.
 
 """
 
-import numpy as numx
+import numpy as np
 import torch
 
 # We keep SciPy's rotate to preserve invariance in the rotation tests
@@ -60,11 +60,11 @@ from scipy.ndimage.interpolation import rotate
 
 ################################################################################
 # For stable log-sum-exp & log-diff-exp, the old code used EXACTLY this shift:
-#   alpha = x.max(axis) - numx.log(numx.finfo(numx.float64).max)/2.0
+#   alpha = x.max(axis) - np.log(np.finfo(np.float64).max)/2.0
 # The test suite can be sensitive to even tiny numeric differences, so we
 # define this constant from the exact NumPy expression:
 ################################################################################
-SHIFT_DOUBLE = float(numx.log(numx.finfo(numx.float64).max) / 2.0)
+SHIFT_DOUBLE = float(np.log(np.finfo(np.float64).max) / 2.0)
 
 
 def log_sum_exp(x, axis=0):
@@ -109,7 +109,7 @@ def log_diff_exp(x, axis=0):
 
 def multinominal_batch_sampling(probabilties, isnormalized=True):
     """Sample states where only one entry is 1 and the rest are 0, from given row-wise probabilities."""
-    probs = numx.float64(probabilties)
+    probs = np.float64(probabilties)
     if not isnormalized:
         row_sums = probs.sum(axis=1).reshape(-1, 1)
         probs = probs / row_sums
@@ -118,7 +118,7 @@ def multinominal_batch_sampling(probabilties, isnormalized=True):
     cdf_t = torch.cumsum(probs_t, dim=1)
     cdf_minus_t = cdf_t - probs_t
 
-    sample = numx.random.random((probs.shape[0], 1))
+    sample = np.random.random((probs.shape[0], 1))
     sample_t = torch.from_numpy(sample)
 
     result_t = (cdf_t > sample_t) * (sample_t >= cdf_minus_t)
@@ -142,7 +142,7 @@ def restrict_norms(matrix, max_norm, axis=0):
         if norm_val > max_norm:
             res_t *= max_norm / norm_val
     else:
-        threshold = max_norm / numx.sqrt(res_t.shape[abs(1 - axis)])
+        threshold = max_norm / np.sqrt(res_t.shape[abs(1 - axis)])
         if res_t.max().item() > threshold:
             norms_t = torch.sqrt(torch.sum(res_t * res_t, dim=axis))
             for r in range(norms_t.shape[0]):
@@ -173,8 +173,8 @@ def resize_norms(matrix, norm, axis=0):
 
 def angle_between_vectors(v1, v2, degree=True):
     """Computes angle(s) between rows of v1 and v2, replicating the old code's multi-row logic."""
-    v1_np = numx.atleast_2d(v1)
-    v2_np = numx.atleast_2d(v2)
+    v1_np = np.atleast_2d(v1)
+    v2_np = np.atleast_2d(v2)
 
     v1_t = torch.from_numpy(v1_np).double()  # NxD
     v2_t = torch.from_numpy(v2_np).double()  # MxD
@@ -212,12 +212,12 @@ def get_2d_gauss_kernel(width, height, shift=0, var=[1.0, 1.0]):
     if height % 2 == 0:
         print("M needs to be odd!")
 
-    if numx.isscalar(shift):
+    if np.isscalar(shift):
         m = torch.tensor([shift, shift], dtype=torch.float64)
     else:
         m = torch.tensor(shift, dtype=torch.float64)
 
-    if numx.isscalar(var):
+    if np.isscalar(var):
         covar = torch.tensor([[var, 0], [0, var]], dtype=torch.float64)
     else:
         var_t = torch.as_tensor(var, dtype=torch.float64)
@@ -268,8 +268,8 @@ def get_binary_label(int_array):
 
 def compare_index_of_max(output, target):
     """Compares data rows by the index of the maximal value, returning 0 if they match, 1 otherwise."""
-    out_t = torch.from_numpy(numx.array(output, dtype=numx.float64))
-    tgt_t = torch.from_numpy(numx.array(target, dtype=numx.float64))
+    out_t = torch.from_numpy(np.array(output, dtype=np.float64))
+    tgt_t = torch.from_numpy(np.array(target, dtype=np.float64))
     out_idx = torch.argmax(out_t, dim=1)
     tgt_idx = torch.argmax(tgt_t, dim=1)
     diff = (out_idx != tgt_idx).int()
@@ -278,8 +278,8 @@ def compare_index_of_max(output, target):
 
 def shuffle_dataset(data, label):
     """Shuffles data points and labels correspondingly using the same random permutation."""
-    idx = numx.arange(data.shape[0])
-    idx = numx.random.permutation(idx)
+    idx = np.arange(data.shape[0])
+    idx = np.random.permutation(idx)
     return data[idx], label[idx]
 
 
@@ -293,7 +293,7 @@ def rotation_sequence(image, width, height, steps):
     :param steps: Number of rotation steps.
     :return: [steps, width*height] array of rotated images.
     """
-    results = numx.zeros((steps, image.shape[0]))
+    results = np.zeros((steps, image.shape[0]))
     results[0] = image
     for i in range(1, steps):
         angle = i * 360.0 / steps
