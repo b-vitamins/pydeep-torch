@@ -1,4 +1,4 @@
-'''  Feed Forward Neural Network Layers.
+"""  Feed Forward Neural Network Layers.
 
     .. Note::
     
@@ -43,35 +43,36 @@
         You should have received a copy of the GNU General Public License
         along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
+
 import numpy as numx
 import pydeep.base.activationfunction as AFct
 import pydeep.base.costfunction as CFct
 
-class FullConnLayer(object):
-    ''' Represents a simple 1D Hidden-Layer.
-    
-    ''' 
-    
 
-    def __init__(self, 
-                 input_dim, 
-                 output_dim,  
-                 activation_function=AFct.SoftSign,
-                 initial_weights='AUTO',
-                 initial_bias=0.0,
-                 initial_offset=0.5,
-                 connections=None,
-                 dtype=numx.float64):
-        ''' This function initializes all necessary parameters and data structures.
-            
+class FullConnLayer(object):
+    """Represents a simple 1D Hidden-Layer."""
+
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        activation_function=AFct.SoftSign,
+        initial_weights="AUTO",
+        initial_bias=0.0,
+        initial_offset=0.5,
+        connections=None,
+        dtype=numx.float64,
+    ):
+        """This function initializes all necessary parameters and data structures.
+
         :Parameters:
             input_dim:            Number of input dimensions.
                                  -type: int
-                                  
+
             output_dim            Number of output dimensions.
                                  -type: int
-                                  
+
             activation_function:  Activation function.
                                  -type: pydeep.base.activationfunction
 
@@ -81,12 +82,12 @@ class FullConnLayer(object):
                                   scalar = sampling values from a zero mean Gaussian with std='scalar',
                                   numpy array  = pass an array, for example to implement tied weights.
                                  -type: 'AUTO', scalar or numpy array [input dim, output_dim]
-                                  
+
             initial_bias:         Initial bias.
                                   scalar = all values will be set to 'initial_bias',
                                   numpy array  = pass an array
                                  -type: 'AUTO', scalar or numpy array [1, output dim]
-                                  
+
             initial_offset:       Initial offset values.
                                   scalar = all values will be set to 'initial_offset',
                                   numpy array  = pass an array
@@ -97,16 +98,16 @@ class FullConnLayer(object):
                                   Example: pydeep.base.numpyextension.generate_2D_connection_matrix() can be used to
                                   construct such a matrix.
                                  -type: numpy array [input dim, output_dim] or None
-                        
+
             dtype:                Used data type i.e. numpy.float64
                                  -type: numpy.float32 or numpy.float64 or numpy.longdouble
-            
-        '''
+
+        """
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.activation_function = activation_function
         self.connections = connections
-        self.dtype = dtype 
+        self.dtype = dtype
 
         # Temp pre-synaptic output
         self.temp_z = None
@@ -118,50 +119,62 @@ class FullConnLayer(object):
         self.temp_deltas = None
 
         # Initialize the weights
-        if initial_weights is 'AUTO':
+        if initial_weights is "AUTO":
             # See" Understanding the difficulty of training deep feedforward neural networks - X Glo, Y Bengio - 2015"
             sig_factor = 1.0
             if activation_function == AFct.Sigmoid:
                 sig_factor = 4.0
-            self.weights = numx.array((2.0 * numx.random.rand(self.input_dim,self.output_dim) - 1.0)
-                           * (sig_factor * numx.sqrt(6.0 / (self.input_dim + self.output_dim))), dtype=self.dtype)
+            self.weights = numx.array(
+                (2.0 * numx.random.rand(self.input_dim, self.output_dim) - 1.0)
+                * (sig_factor * numx.sqrt(6.0 / (self.input_dim + self.output_dim))),
+                dtype=self.dtype,
+            )
         else:
             if numx.isscalar(initial_weights):
-                self.weights = numx.array(numx.random.randn(self.input_dim, self.output_dim) * initial_weights,
-                                          dtype=self.dtype)
+                self.weights = numx.array(
+                    numx.random.randn(self.input_dim, self.output_dim)
+                    * initial_weights,
+                    dtype=self.dtype,
+                )
             else:
                 self.weights = initial_weights
-                if self.weights.shape != (self.input_dim,self.output_dim):
-                    raise Exception("Weight matrix dim. and input dim and output dim. have to match!")
+                if self.weights.shape != (self.input_dim, self.output_dim):
+                    raise Exception(
+                        "Weight matrix dim. and input dim and output dim. have to match!"
+                    )
 
         # Drop connections is connection matrix is given
         if connections is not None:
             self.weights *= self.connections
 
         # Initialize the bias
-        if initial_bias is 'AUTO':
-            self.bias = numx.array(numx.zeros((1,self.output_dim)), dtype=self.dtype)
+        if initial_bias is "AUTO":
+            self.bias = numx.array(numx.zeros((1, self.output_dim)), dtype=self.dtype)
         elif numx.isscalar(initial_bias):
-            self.bias = numx.array(numx.zeros((1,self.output_dim)) + initial_bias, dtype=self.dtype)
+            self.bias = numx.array(
+                numx.zeros((1, self.output_dim)) + initial_bias, dtype=self.dtype
+            )
         else:
             self.bias = numx.array(initial_bias, dtype=self.dtype)
-            if initial_bias.shape != (1,self.output_dim):
+            if initial_bias.shape != (1, self.output_dim):
                 raise Exception("Bias dim. and output dim. have to match!")
 
         # Initialize the offset
-        if initial_offset is 'AUTO':
-            self.offset = numx.array(numx.zeros((1,self.input_dim)) + 0.5, dtype=self.dtype)
+        if initial_offset is "AUTO":
+            self.offset = numx.array(
+                numx.zeros((1, self.input_dim)) + 0.5, dtype=self.dtype
+            )
         elif numx.isscalar(initial_offset):
-            self.offset = numx.array(numx.zeros((1,self.input_dim)) + initial_offset, dtype=self.dtype)
+            self.offset = numx.array(
+                numx.zeros((1, self.input_dim)) + initial_offset, dtype=self.dtype
+            )
         else:
             self.offset = numx.array(initial_offset, dtype=self.dtype)
-            if self.offset.shape != (1,self.input_dim):
+            if self.offset.shape != (1, self.input_dim):
                 raise Exception("Offset dim. and input dim. have to match!")
 
     def clear_temp_data(self):
-        ''' Sets all temp variables to None.
-
-        '''
+        """Sets all temp variables to None."""
         # Temp pre-synaptic output
         self.temp_z = None
         # Temp post-synaptic output
@@ -172,28 +185,28 @@ class FullConnLayer(object):
         self.temp_deltas = None
 
     def get_parameters(self):
-        ''' This function returns all model parameters in a list.
+        """This function returns all model parameters in a list.
 
         :Returns:
             The parameter references in a list.
            -type: list
 
-        '''
+        """
         return [self.weights, self.bias]
 
     def update_parameters(self, parameter_updates):
-        ''' This function updates all parameters given the updates derived by the training methods.
+        """This function updates all parameters given the updates derived by the training methods.
 
         :Parameters:
             parameter_updates:  Parameter gradients.
                                -type: list of numpy arrays (num para. x [para.shape])
 
-        '''
+        """
         for p, u in zip(self.get_parameters(), parameter_updates):
             p -= u
 
-    def update_offsets(self, shift=1.0, new_mean = None):
-        ''' This function updates the offsets.
+    def update_offsets(self, shift=1.0, new_mean=None):
+        """This function updates the offsets.
             Example: update_offsets(1,0) reparameterizes to an uncentered model.
 
         :Parameters:
@@ -205,74 +218,83 @@ class FullConnLayer(object):
                       mean.
                      -type: float, numpy array or None
 
-        '''
+        """
         if shift > 0.0:
             # Calculate data mean
             if new_mean is None:
-                new_mean = numx.mean(self.temp_x, axis =0).reshape(1,self.input_dim)
+                new_mean = numx.mean(self.temp_x, axis=0).reshape(1, self.input_dim)
             # Reparameterize the network to the new mean
-            self.bias += shift * numx.dot(new_mean-self.offset, self.weights)
+            self.bias += shift * numx.dot(new_mean - self.offset, self.weights)
             # Exp. mov. avg. update
-            self.offset *= (1.0-shift)
+            self.offset *= 1.0 - shift
             self.offset += shift * new_mean
 
     def forward_propagate(self, x):
-        ''' Forward-propagates the data through the network and stores pre-syn activation, post-syn activation and input
+        """Forward-propagates the data through the network and stores pre-syn activation, post-syn activation and input
             mean internally.
-        
+
         :Parameters:
             x:      Data
                    -type: numpy arrays [batchsize, input dim]
 
-        :Returns: 
+        :Returns:
             Post activation
-           -type: numpy arrays [batchsize, output dim] 
-                               
-        '''
+           -type: numpy arrays [batchsize, output dim]
+
+        """
         # Store data
         self.temp_x = x
         # Calculate pre-synaptic output
-        self.temp_z = numx.dot(self.temp_x - self.offset,self.weights) + self.bias
+        self.temp_z = numx.dot(self.temp_x - self.offset, self.weights) + self.bias
         # Calculate post-synaptic output
         self.temp_a = self.activation_function.f(self.temp_z)
         return self.temp_a
 
     def _backward_propagate(self):
-        ''' Back-propagates the error signal.
+        """Back-propagates the error signal.
 
         :Returns:
             Backprop Signal, delta value for the layer below.
            -type: numpy arrays [batchsize, input dim]
 
-        '''
+        """
         return numx.dot(self.temp_deltas, self.weights.T)
 
     def _calculate_gradient(self):
-        ''' Calculates the gradient for the parameters,
+        """Calculates the gradient for the parameters,
 
         :Returns:
             The parameters gradient in a list.
            -type: list
 
-        '''
+        """
         # Weight gradient
-        gradW = numx.dot((self.temp_x-self.offset).T, self.temp_deltas)/self.temp_x.shape[0]
+        gradW = (
+            numx.dot((self.temp_x - self.offset).T, self.temp_deltas)
+            / self.temp_x.shape[0]
+        )
         # If connection matrix is given drop corresponding connections
         if self.connections is not None:
             gradW *= self.connections
         # Return weight gradient and bias gradient
-        return [gradW, numx.mean(self.temp_deltas, axis=0).reshape(1,self.temp_deltas.shape[1])]
+        return [
+            gradW,
+            numx.mean(self.temp_deltas, axis=0).reshape(1, self.temp_deltas.shape[1]),
+        ]
 
-    def _get_deltas(self, deltas,
-                          labels,
-                          cost,
-                          reg_cost,
-                          desired_sparseness,
-                          cost_sparseness,
-                          reg_sparseness,
-                          check_gradient=False):
-        ''' Computes the delta value/ error terms for the layer.
-        
+    def _get_deltas(
+        self,
+        deltas,
+        labels,
+        cost,
+        reg_cost,
+        desired_sparseness,
+        cost_sparseness,
+        reg_sparseness,
+        check_gradient=False,
+    ):
+        """Computes the delta value/ error terms for the layer.
+
         :Parameters:
             deltas:             Delta values from the layer above or None if top-layer.
                                -type: None or numpy arrays [batchsize, output dim]
@@ -298,11 +320,11 @@ class FullConnLayer(object):
             check_gradient:     Flase for gradient checking mode.
                                -type: bool
 
-        :Returns: 
+        :Returns:
             Delta values for the current layer.
            -type: numpy arrays [batchsize, output dim]
-                               
-        '''
+
+        """
         """
         # Optimization possible if all cost functions are NegLogLikelihood and the activation function is Softmax.
         optimized = True
@@ -371,9 +393,15 @@ class FullConnLayer(object):
         optimized = False
         if deltas is None:
             deltas = 0.0
-            if ((cost == CFct.CrossEntropyError or isinstance(cost, CFct.CrossEntropyError)) and
-                (self.activation_function == AFct.SoftMax or isinstance(self.activation_function, AFct.SoftMax) or
-                 self.activation_function == AFct.Sigmoid or isinstance(self.activation_function, AFct.Sigmoid))):
+            if (
+                cost == CFct.CrossEntropyError
+                or isinstance(cost, CFct.CrossEntropyError)
+            ) and (
+                self.activation_function == AFct.SoftMax
+                or isinstance(self.activation_function, AFct.SoftMax)
+                or self.activation_function == AFct.Sigmoid
+                or isinstance(self.activation_function, AFct.Sigmoid)
+            ):
                 optimized = True
                 if check_gradient:
                     optimized = False
@@ -381,7 +409,9 @@ class FullConnLayer(object):
         # If sparseness regularization is enabled -> no optimization...
         if reg_sparseness != 0.0:
             # ... compute the cost derivative
-            deltas_sparse = cost_sparseness.df(numx.atleast_2d(numx.mean(self.temp_a, axis=0)), desired_sparseness)
+            deltas_sparse = cost_sparseness.df(
+                numx.atleast_2d(numx.mean(self.temp_a, axis=0)), desired_sparseness
+            )
             deltas += reg_sparseness * deltas_sparse
             optimized = False
 
@@ -390,14 +420,15 @@ class FullConnLayer(object):
         # derivative is a Jacobian. The delta values can thefore not be given by a elementwise product of top-deltas
         # and activation function derivative, instead an additional sum is involved.
         if not optimized:
-
             # If labels are provided ...
             if reg_cost != 0.0:
                 # ... compute the cost derivative
                 deltas_targets = cost.df(self.temp_a, labels)
                 deltas += reg_cost * deltas_targets
 
-            if self.activation_function == AFct.SoftMax or isinstance(self.activation_function,AFct.SoftMax):
+            if self.activation_function == AFct.SoftMax or isinstance(
+                self.activation_function, AFct.SoftMax
+            ):
                 # Calcuclate Jacobian
                 J = AFct.SoftMax.df(self.temp_a)
                 # For each partial derivative ...

@@ -33,4 +33,11 @@
         along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-__all__ = ["activationfunction", "basicstructures", "corruptor", "costfunction", "numpyextension"]
+
+__all__ = [
+    "activationfunction",
+    "basicstructures",
+    "corruptor",
+    "costfunction",
+    "numpyextension",
+]

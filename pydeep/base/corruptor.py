@@ -1,61 +1,61 @@
-""" This module provides implementations for corrupting the training data. 
+"""This module provides implementations for corrupting the training data.
 
-    :Implemented:
-        - Identity
-        - Sampling Binary
-        - BinaryNoise
-        - Additive Gauss Noise
-        - Multiplicative Gauss Noise
-        - Dropout
-        - Random Permutation
-        - KeepKWinner
-        - KWinnerTakesAll
+:Implemented:
+    - Identity
+    - Sampling Binary
+    - BinaryNoise
+    - Additive Gauss Noise
+    - Multiplicative Gauss Noise
+    - Dropout
+    - Random Permutation
+    - KeepKWinner
+    - KWinnerTakesAll
 
-    :Info: 
-        http://ufldl.stanford.edu/wiki/index.php/Sparse_Coding:_Autoencoder_Interpretation
-   
-    :Version:
-        1.1.0
+:Info:
+    http://ufldl.stanford.edu/wiki/index.php/Sparse_Coding:_Autoencoder_Interpretation
 
-    :Date:
-        13.03.2017
+:Version:
+    1.1.0
 
-    :Author:
-        Jan Melchior
+:Date:
+    13.03.2017
 
-    :Contact:
-        JanMelchior@gmx.de
+:Author:
+    Jan Melchior
 
-    :License:
+:Contact:
+    JanMelchior@gmx.de
 
-        Copyright (C) 2017 Jan Melchior
+:License:
 
-        This file is part of the Python library PyDeep.
+    Copyright (C) 2017 Jan Melchior
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    This file is part of the Python library PyDeep.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
-            
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """
+
 import numpy as numx
 
 
 class Identity(object):
-    """ Dummy corruptor object.
-    """
+    """Dummy corruptor object."""
 
     @classmethod
     def corrupt(cls, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -67,11 +67,10 @@ class Identity(object):
 
 
 class AdditiveGaussNoise(object):
-    """ An object that corrupts data by adding Gauss noise.
-    """
+    """An object that corrupts data by adding Gauss noise."""
 
     def __init__(self, mean, std):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param mean: Constant the data is shifted
         :type mean: float
@@ -83,7 +82,7 @@ class AdditiveGaussNoise(object):
         self.std = std
 
     def corrupt(self, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -95,11 +94,10 @@ class AdditiveGaussNoise(object):
 
 
 class MultiGaussNoise(object):
-    """ An object that corrupts data by multiplying Gauss noise.
-    """
+    """An object that corrupts data by multiplying Gauss noise."""
 
     def __init__(self, mean, std):
-        """ Corruptor contructor.
+        """Corruptor contructor.
 
         :param mean: Constant the data is shifted
         :type mean: float
@@ -111,7 +109,7 @@ class MultiGaussNoise(object):
         self.std = std
 
     def corrupt(self, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -123,12 +121,11 @@ class MultiGaussNoise(object):
 
 
 class SamplingBinary(object):
-    """ Sample binary states (zero out) corruption.
-    """
+    """Sample binary states (zero out) corruption."""
 
     @classmethod
     def corrupt(cls, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -138,13 +135,12 @@ class SamplingBinary(object):
         """
         return data > numx.random.random(data.shape)
 
-    
+
 class BinaryNoise(object):
-    """ Binary Noise.
-    """
+    """Binary Noise."""
 
     def __init__(self, percentage):
-        """ Corruptor contructor.
+        """Corruptor contructor.
 
         :param percentage: Percent of random chosen pixel/states.
         :type percentage: float [0,1]
@@ -154,7 +150,7 @@ class BinaryNoise(object):
         self.percentage = percentage
 
     def corrupt(self, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -164,13 +160,12 @@ class BinaryNoise(object):
         """
         return numx.abs(data - numx.random.binomial(1, self.percentage, data.shape))
 
-    
+
 class Dropout(object):
-    """ Dropout (zero out) corruption.
-    """
+    """Dropout (zero out) corruption."""
 
     def __init__(self, dropout_percentage=0.2):
-        """ Corruptor contructor.
+        """Corruptor contructor.
 
         :param dropout_percentage: Dropout percentage
         :type dropout_percentage: float
@@ -178,7 +173,7 @@ class Dropout(object):
         self.dropout_percentage = dropout_percentage
 
     def corrupt(self, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -186,16 +181,18 @@ class Dropout(object):
         :return: Corrupted data.
         :rtype: numpy array [num samples, layer dim]
         """
-        return data * numx.random.binomial(1, 1.0 - self.dropout_percentage, data.shape) / (
-            1.0 - self.dropout_percentage)
+        return (
+            data
+            * numx.random.binomial(1, 1.0 - self.dropout_percentage, data.shape)
+            / (1.0 - self.dropout_percentage)
+        )
 
 
 class RandomPermutation(object):
-    """ RandomPermutation corruption, a fix number of units change their activation values.
-    """
+    """RandomPermutation corruption, a fix number of units change their activation values."""
 
     def __init__(self, permutation_percentage=0.2):
-        """ Corruptor contructor.
+        """Corruptor contructor.
 
         :param permutation_percentage: permutation_percentage: Percentage of states to permute
         :type permutation_percentage: float
@@ -203,7 +200,7 @@ class RandomPermutation(object):
         self.permutation_percentage = permutation_percentage
 
     def corrupt(self, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -220,17 +217,20 @@ class RandomPermutation(object):
             # result[d][setA] = pattern[d][setB]
             # result[d][setB] = pattern[d][setA]
             tempset = numx.random.permutation(numx.arange(data.shape[1]))
-            result[d][tempset[0:num_switches]] = data[d][tempset[num_switches:2 * num_switches]]
-            result[d][tempset[num_switches:2 * num_switches]] = data[d][tempset[0:num_switches]]
+            result[d][tempset[0:num_switches]] = data[d][
+                tempset[num_switches : 2 * num_switches]
+            ]
+            result[d][tempset[num_switches : 2 * num_switches]] = data[d][
+                tempset[0:num_switches]
+            ]
         return result
 
 
 class KeepKWinner(object):
-    """ Implements K Winner stay. Keep the k max values and set the rest to 0.
-    """
+    """Implements K Winner stay. Keep the k max values and set the rest to 0."""
 
     def __init__(self, k=10, axis=0):
-        """ Corruptor contructor.
+        """Corruptor contructor.
 
         :param k: Keep the k max values and set the rest to 0.
         :type k: int
@@ -242,7 +242,7 @@ class KeepKWinner(object):
         self.axis = axis
 
     def corrupt(self, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -252,17 +252,20 @@ class KeepKWinner(object):
         """
         data = data
         if self.axis == 0:
-            return data * (data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[-self.k, :]))
+            return data * (
+                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[-self.k, :])
+            )
         else:
-            return data * (data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[:, -self.k]).T)
+            return data * (
+                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[:, -self.k]).T
+            )
 
 
 class KWinnerTakesAll(object):
-    """ Implements K Winner takes all. Keep the k max values and set the rest to 0.
-    """
+    """Implements K Winner takes all. Keep the k max values and set the rest to 0."""
 
     def __init__(self, k=10, axis=0):
-        """ Corruptor constructor.
+        """Corruptor constructor.
 
         :param k: Keep the k max values and set the rest to 0.
         :type k: int
@@ -274,7 +277,7 @@ class KWinnerTakesAll(object):
         self.axis = axis
 
     def corrupt(self, data):
-        """ The function corrupts the data.
+        """The function corrupts the data.
 
         :param data: Input of the layer.
         :type data: numpy array [num samples, layer dim]
@@ -284,6 +287,10 @@ class KWinnerTakesAll(object):
         """
         data = data
         if self.axis == 0:
-            return 1.0 * (data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[-self.k, :]))
+            return 1.0 * (
+                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[-self.k, :])
+            )
         else:
-            return 1.0 * (data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[:, -self.k]).T)
+            return 1.0 * (
+                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[:, -self.k]).T
+            )

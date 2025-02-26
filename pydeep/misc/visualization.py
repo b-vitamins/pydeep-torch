@@ -1,61 +1,62 @@
-""" This module provides functions for displaying and visualize data.
-    It extends the matplotlib.pyplot.
+"""This module provides functions for displaying and visualize data.
+It extends the matplotlib.pyplot.
 
-    :Implemented:
-        - Tile a matrix rows
-        - Tile a matrix columns
-        - Show a matrix
-        - Show plot
-        - Show a histogram
+:Implemented:
+    - Tile a matrix rows
+    - Tile a matrix columns
+    - Show a matrix
+    - Show plot
+    - Show a histogram
 
-        - Plot data
-        - Plot 2D weights
-        - Plot PDF-contours
+    - Plot data
+    - Plot 2D weights
+    - Plot PDF-contours
 
-        - Show RBM parameters
-        - hidden_activation
-        - reorder_filter_by_hidden_activation
-        - generate_samples
+    - Show RBM parameters
+    - hidden_activation
+    - reorder_filter_by_hidden_activation
+    - generate_samples
 
-        - filter_frequency_and_angle
-        - filter_angle_response
-        - calculate_amari_distance
-        - Show the tuning curves
-        - Show the optimal gratings
-        - Show the frequency angle histogram
+    - filter_frequency_and_angle
+    - filter_angle_response
+    - calculate_amari_distance
+    - Show the tuning curves
+    - Show the optimal gratings
+    - Show the frequency angle histogram
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        19.03.2017
+:Date:
+    19.03.2017
 
-    :Author:
-        Jan Melchior, Nan Wang
+:Author:
+    Jan Melchior, Nan Wang
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
 import copy
 
 import numpy as numx
@@ -64,14 +65,16 @@ from matplotlib.pyplot import *
 from pydeep.preprocessing import rescale_data
 
 
-def tile_matrix_columns(matrix,
-                        tile_width,
-                        tile_height,
-                        num_tiles_x,
-                        num_tiles_y,
-                        border_size=1,
-                        normalized=True):
-    """ Creates a matrix with tiles from columns.
+def tile_matrix_columns(
+    matrix,
+    tile_width,
+    tile_height,
+    num_tiles_x,
+    num_tiles_y,
+    border_size=1,
+    normalized=True,
+):
+    """Creates a matrix with tiles from columns.
 
     :param matrix: Matrix to display.
     :type matrix: numpy array 2D
@@ -97,18 +100,27 @@ def tile_matrix_columns(matrix,
     :return: Matrix showing the 2D patches.
     :rtype: 2D numpy array
     """
-    return tile_matrix_rows(matrix.T, tile_width, tile_height, num_tiles_x,
-                            num_tiles_y, border_size, normalized)
+    return tile_matrix_rows(
+        matrix.T,
+        tile_width,
+        tile_height,
+        num_tiles_x,
+        num_tiles_y,
+        border_size,
+        normalized,
+    )
 
 
-def tile_matrix_rows(matrix,
-                     tile_width,
-                     tile_height,
-                     num_tiles_x,
-                     num_tiles_y,
-                     border_size=1,
-                     normalized=True):
-    """ Creates a matrix with tiles from rows.
+def tile_matrix_rows(
+    matrix,
+    tile_width,
+    tile_height,
+    num_tiles_x,
+    num_tiles_y,
+    border_size=1,
+    normalized=True,
+):
+    """Creates a matrix with tiles from rows.
 
     :param matrix: Matrix to display.
     :type matrix: numpy array 2D
@@ -138,24 +150,36 @@ def tile_matrix_rows(matrix,
         result = np.max(rescale_data(matrix))
     else:
         result = np.max(matrix)
-    result *= np.ones( (int(tile_width * num_tiles_x + (num_tiles_x - 1) * border_size),
-                        int(tile_height * num_tiles_y + (num_tiles_y - 1) * border_size)))
+    result *= np.ones(
+        (
+            int(tile_width * num_tiles_x + (num_tiles_x - 1) * border_size),
+            int(tile_height * num_tiles_y + (num_tiles_y - 1) * border_size),
+        )
+    )
     for x in range(int(num_tiles_x)):
         for y in range(int(num_tiles_y)):
-            single_image = matrix[:, (x * num_tiles_y) + y].reshape(tile_width,
-                                                                    tile_height)
+            single_image = matrix[:, (x * num_tiles_y) + y].reshape(
+                tile_width, tile_height
+            )
             if normalized is True:
-                result[x * (tile_width + border_size):x * (tile_width + border_size) + tile_width, y * (
-                    tile_height + border_size):y * (tile_height + border_size) + tile_height] = rescale_data(
-                    single_image)
+                result[
+                    x * (tile_width + border_size) : x * (tile_width + border_size)
+                    + tile_width,
+                    y * (tile_height + border_size) : y * (tile_height + border_size)
+                    + tile_height,
+                ] = rescale_data(single_image)
             else:
-                result[x * (tile_width + border_size):x * (tile_width + border_size) + tile_width, y * (
-                    tile_height + border_size):y * (tile_height + border_size) + tile_height] = single_image
+                result[
+                    x * (tile_width + border_size) : x * (tile_width + border_size)
+                    + tile_width,
+                    y * (tile_height + border_size) : y * (tile_height + border_size)
+                    + tile_height,
+                ] = single_image
     return result
 
 
-def imshow_matrix(matrix, windowtitle, interpolation='nearest'):
-    """ Displays a matrix in gray-scale.
+def imshow_matrix(matrix, windowtitle, interpolation="nearest"):
+    """Displays a matrix in gray-scale.
 
     :param matrix: Data to display
     :type matrix: numpy array
@@ -166,14 +190,14 @@ def imshow_matrix(matrix, windowtitle, interpolation='nearest'):
     :param interpolation: Interpolation style
     :type interpolation: string
     """
-    figure(windowtitle)#.suptitle()
-    axis('off')
+    figure(windowtitle)  # .suptitle()
+    axis("off")
     gray()
     imshow(np.array(matrix, np.float64), interpolation=interpolation)
 
 
 def imshow_plot(matrix, windowtitle):
-    """ Plots the colums of a matrix.
+    """Plots the colums of a matrix.
 
     :param matrix: Data to plot
     :type matrix: numpy array
@@ -186,13 +210,10 @@ def imshow_plot(matrix, windowtitle):
     plot(np.array(matrix, np.float64))
 
 
-def imshow_histogram(matrix,
-                     windowtitle,
-                     num_bins=10,
-                     normed=False,
-                     cumulative=False,
-                     log_scale=False):
-    """ Shows a image of the histogram.
+def imshow_histogram(
+    matrix, windowtitle, num_bins=10, normed=False, cumulative=False, log_scale=False
+):
+    """Shows a image of the histogram.
 
     :param matrix: Data to display
     :type matrix: numpy array 2D
@@ -216,11 +237,13 @@ def imshow_histogram(matrix,
     hist(matrix, bins=num_bins, normed=normed, cumulative=cumulative, log=log_scale)
 
 
-def plot_2d_weights(weights,
-                    bias=np.zeros((1, 2)),
-                    scaling_factor=1.0,
-                    color='random',
-                    bias_color='random'):
+def plot_2d_weights(
+    weights,
+    bias=np.zeros((1, 2)),
+    scaling_factor=1.0,
+    color="random",
+    bias_color="random",
+):
     """
 
     :param weights: Weight matrix (weights per column).
@@ -241,34 +264,67 @@ def plot_2d_weights(weights,
     width = 0.02
     hw = 0.0
     if np.sqrt(bias[0, 0] * bias[0, 0] + bias[0, 1] * bias[0, 1]) > hw:
-        if bias_color is 'random':
+        if bias_color is "random":
             colorrgb = [np.random.rand(), np.random.rand(), np.random.rand()]
-            arrow(0.0, 0.0, bias[0, 0], bias[0, 1], color=colorrgb, width=width, length_includes_head=True,
-                  head_width=hw)
+            arrow(
+                0.0,
+                0.0,
+                bias[0, 0],
+                bias[0, 1],
+                color=colorrgb,
+                width=width,
+                length_includes_head=True,
+                head_width=hw,
+            )
         else:
-            arrow(0.0, 0.0, bias[0, 0], bias[0, 1], color=bias_color, width=width, length_includes_head=True,
-                  head_width=hw)
+            arrow(
+                0.0,
+                0.0,
+                bias[0, 0],
+                bias[0, 1],
+                color=bias_color,
+                width=width,
+                length_includes_head=True,
+                head_width=hw,
+            )
 
-    if color is 'random':
+    if color is "random":
         for c in range(weights.shape[1]):
             colorrgb = [np.random.rand(), np.random.rand(), np.random.rand()]
-            if np.sqrt(weights[0, c] * weights[0, c] + weights[1, c] * weights[1, c]) > hw:
-                arrow(bias[0, 0], bias[0, 1], scaling_factor * weights[0, c],
-                      scaling_factor * weights[1, c], color=colorrgb, width=width,
-                      length_includes_head=True, head_width=hw)
+            if (
+                np.sqrt(weights[0, c] * weights[0, c] + weights[1, c] * weights[1, c])
+                > hw
+            ):
+                arrow(
+                    bias[0, 0],
+                    bias[0, 1],
+                    scaling_factor * weights[0, c],
+                    scaling_factor * weights[1, c],
+                    color=colorrgb,
+                    width=width,
+                    length_includes_head=True,
+                    head_width=hw,
+                )
     else:
         for c in range(weights.shape[1]):
-            if np.sqrt(weights[0, c] * weights[0, c] + weights[1, c] * weights[1, c]) > hw:
-                arrow(bias[0, 0], bias[0, 1], scaling_factor * weights[0, c],
-                      scaling_factor * weights[1, c], color=color, width=width, length_includes_head=True,
-                      head_width=hw)
+            if (
+                np.sqrt(weights[0, c] * weights[0, c] + weights[1, c] * weights[1, c])
+                > hw
+            ):
+                arrow(
+                    bias[0, 0],
+                    bias[0, 1],
+                    scaling_factor * weights[0, c],
+                    scaling_factor * weights[1, c],
+                    color=color,
+                    width=width,
+                    length_includes_head=True,
+                    head_width=hw,
+                )
 
 
-def plot_2d_data(data,
-                 alpha=0.1,
-                 color='navy',
-                 point_size=5):
-    """ Plots the data into the current figure.
+def plot_2d_data(data, alpha=0.1, color="navy", point_size=5):
+    """Plots the data into the current figure.
 
     :param data: Data matrix (Datapoint x dimensions).
     :type data: numpy array
@@ -282,16 +338,26 @@ def plot_2d_data(data,
     :param point_size: Size of the data points.
     :type point_size: int
     """
-    scatter(data[:, 0], data[:, 1], s=point_size, c=color, marker='o', alpha=alpha, linewidth=0)
+    scatter(
+        data[:, 0],
+        data[:, 1],
+        s=point_size,
+        c=color,
+        marker="o",
+        alpha=alpha,
+        linewidth=0,
+    )
 
 
-def plot_2d_contour(probability_function,
-                    value_range=[-5.0, 5.0, -5.0, 5.0],
-                    step_size=0.01,
-                    levels=20,
-                    stylev=None,
-                    colormap='jet'):
-    """ Plots the data into the current figure.
+def plot_2d_contour(
+    probability_function,
+    value_range=[-5.0, 5.0, -5.0, 5.0],
+    step_size=0.01,
+    levels=20,
+    stylev=None,
+    colormap="jet",
+):
+    """Plots the data into the current figure.
 
     :param probability_function: Probability function must take 2D array [number of datapoint x 2]
     :type probability_function: python method
@@ -314,8 +380,18 @@ def plot_2d_contour(probability_function,
     # Generate x,y coordinates
     # Suprisingly using the stepsize of
     # arange directly does not work ( np.arange(min_x,max_x,step_size) )
-    x = np.arange(value_range[0] / step_size, (value_range[1] + step_size) / step_size, 1.0) * step_size
-    y = np.arange(value_range[2] / step_size, (value_range[3] + step_size) / step_size, 1.0) * step_size
+    x = (
+        np.arange(
+            value_range[0] / step_size, (value_range[1] + step_size) / step_size, 1.0
+        )
+        * step_size
+    )
+    y = (
+        np.arange(
+            value_range[2] / step_size, (value_range[3] + step_size) / step_size, 1.0
+        )
+        * step_size
+    )
 
     # Get distance or range
     dist_x = x.shape[0]
@@ -342,22 +418,30 @@ def plot_2d_contour(probability_function,
     set_cmap(colormap)
 
     # Plot contours
-    if stylev is 'filled':
-        contourf(x, y, z, levels=list(np.linspace(np.min(z), np.max(z), levels)), origin='lower')
-    elif stylev is 'image':
-        imshow(z, origin='lower', extent=value_range)
+    if stylev is "filled":
+        contourf(
+            x,
+            y,
+            z,
+            levels=list(np.linspace(np.min(z), np.max(z), levels)),
+            origin="lower",
+        )
+    elif stylev is "image":
+        imshow(z, origin="lower", extent=value_range)
     else:
-        contour(x, y, z, levels=list(np.linspace(np.min(z), np.max(z), levels)), origin='lower')
+        contour(
+            x,
+            y,
+            z,
+            levels=list(np.linspace(np.min(z), np.max(z), levels)),
+            origin="lower",
+        )
 
 
-def imshow_standard_rbm_parameters(rbm,
-                                   v1,
-                                   v2,
-                                   h1,
-                                   h2,
-                                   whitening=None,
-                                   window_title=""):
-    """ Saves the weights and biases of a given RBM at the given location.
+def imshow_standard_rbm_parameters(
+    rbm, v1, v2, h1, h2, whitening=None, window_title=""
+):
+    """Saves the weights and biases of a given RBM at the given location.
 
     :param rbm: RBM which weights and biases should be saved.
     :type rbm: RBM object
@@ -381,29 +465,58 @@ def imshow_standard_rbm_parameters(rbm,
     :type window_title: string
     """
     if whitening is not None:
-        imshow_matrix(tile_matrix_rows(whitening.unproject(rbm.w.T).T, v1, v2, h1, h2, border_size=1, normalized=True),
-                      window_title + ' Normalized Weights')
-        imshow_matrix(tile_matrix_rows(whitening.unproject(rbm.w.T).T, v1, v2, h1, h2, border_size=1, normalized=False),
-                      window_title + ' Unormalized Weights')
-        imshow_matrix(whitening.unproject(rbm.bv).reshape(v1, v2), window_title + ' Visible Bias')
-        imshow_matrix(whitening.unproject(rbm.ov).reshape(v1, v2), window_title + ' Visible Offset')
+        imshow_matrix(
+            tile_matrix_rows(
+                whitening.unproject(rbm.w.T).T,
+                v1,
+                v2,
+                h1,
+                h2,
+                border_size=1,
+                normalized=True,
+            ),
+            window_title + " Normalized Weights",
+        )
+        imshow_matrix(
+            tile_matrix_rows(
+                whitening.unproject(rbm.w.T).T,
+                v1,
+                v2,
+                h1,
+                h2,
+                border_size=1,
+                normalized=False,
+            ),
+            window_title + " Unormalized Weights",
+        )
+        imshow_matrix(
+            whitening.unproject(rbm.bv).reshape(v1, v2), window_title + " Visible Bias"
+        )
+        imshow_matrix(
+            whitening.unproject(rbm.ov).reshape(v1, v2),
+            window_title + " Visible Offset",
+        )
     else:
-        imshow_matrix(tile_matrix_rows(rbm.w, v1, v2, h1, h2, border_size=1, normalized=True), window_title +
-                      ' Normalized Weights')
-        imshow_matrix(tile_matrix_rows(rbm.w, v1, v2, h1, h2, border_size=1, normalized=False), window_title +
-                      ' Unormalized Weights')
-        imshow_matrix(rbm.bv.reshape(v1, v2), window_title + ' Visible Bias')
-        imshow_matrix(rbm.ov.reshape(v1, v2), window_title + ' Visible Offset')
+        imshow_matrix(
+            tile_matrix_rows(rbm.w, v1, v2, h1, h2, border_size=1, normalized=True),
+            window_title + " Normalized Weights",
+        )
+        imshow_matrix(
+            tile_matrix_rows(rbm.w, v1, v2, h1, h2, border_size=1, normalized=False),
+            window_title + " Unormalized Weights",
+        )
+        imshow_matrix(rbm.bv.reshape(v1, v2), window_title + " Visible Bias")
+        imshow_matrix(rbm.ov.reshape(v1, v2), window_title + " Visible Offset")
 
-    imshow_matrix(rbm.bh.reshape(h1, h2), window_title + ' Hidden Bias')
-    imshow_matrix(rbm.oh.reshape(h1, h2), window_title + ' Hidden Offset')
+    imshow_matrix(rbm.bh.reshape(h1, h2), window_title + " Hidden Bias")
+    imshow_matrix(rbm.oh.reshape(h1, h2), window_title + " Hidden Offset")
 
-    if hasattr(rbm, 'variance'):
-        imshow_matrix(rbm.variance.reshape(v1, v2), window_title + ' Variance')
+    if hasattr(rbm, "variance"):
+        imshow_matrix(rbm.variance.reshape(v1, v2), window_title + " Variance")
 
 
 def hidden_activation(rbm, data, states=False):
-    """ Calculates the hidden activation.
+    """Calculates the hidden activation.
 
     :param rbm: RBM model object.
     :type rbm: RBM model object
@@ -424,7 +537,7 @@ def hidden_activation(rbm, data, states=False):
 
 
 def reorder_filter_by_hidden_activation(rbm, data):
-    """ Reorders the weights by its activation over the data set in decreasing order.
+    """Reorders the weights by its activation over the data set in decreasing order.
 
     :param rbm: RBM model object.
     :type rbm: RBM model object
@@ -445,15 +558,10 @@ def reorder_filter_by_hidden_activation(rbm, data):
     return rbm_ordered
 
 
-def generate_samples(rbm,
-                     data,
-                     iterations,
-                     stepsize,
-                     v1,
-                     v2,
-                     sample_states=False,
-                     whitening=None):
-    """ Generates samples from the given RBM model.
+def generate_samples(
+    rbm, data, iterations, stepsize, v1, v2, sample_states=False, whitening=None
+):
+    """Generates samples from the given RBM model.
 
     :param rbm: RBM model.
     :type rbm: RBM model object.
@@ -494,21 +602,27 @@ def generate_samples(rbm,
         if i % stepsize == 0:
             if whitening is not None:
                 if sample_states:
-                    result = numx.vstack((result,
-                                          whitening.unproject(vis_states)))
+                    result = numx.vstack((result, whitening.unproject(vis_states)))
                 else:
-                    result = numx.vstack((result,
-                                          whitening.unproject(vis_probs)))
+                    result = numx.vstack((result, whitening.unproject(vis_probs)))
             else:
                 if sample_states:
                     result = numx.vstack((result, vis_states))
                 else:
                     result = numx.vstack((result, vis_probs))
-    return tile_matrix_rows(result.T, v1, v2, iterations / stepsize + 1, data.shape[0], border_size=1, normalized=False)
+    return tile_matrix_rows(
+        result.T,
+        v1,
+        v2,
+        iterations / stepsize + 1,
+        data.shape[0],
+        border_size=1,
+        normalized=False,
+    )
 
 
 def imshow_filter_tuning_curve(filters, num_of_ang=40):
-    """ Plot the tuning curves of the filter's changes in frequency and angles.
+    """Plot the tuning curves of the filter's changes in frequency and angles.
 
     :param filters: Filters to analyze.
     :type filters: numpy array
@@ -522,17 +636,16 @@ def imshow_filter_tuning_curve(filters, num_of_ang=40):
     max_wavelength = int(np.sqrt(input_dim))
     frq_rsp, _ = filter_frequency_response(filters, num_of_ang)
     ang_rsp, _ = filter_angle_response(filters, num_of_ang)
-    figure().suptitle('Tuning curves')
+    figure().suptitle("Tuning curves")
     for plot_idx in range(output_dim):
         subplot(output_dim, 2, 2 * plot_idx + 1)
         plot(range(2, max_wavelength + 1), frq_rsp[:, plot_idx])
         subplot(output_dim, 2, 2 * plot_idx + 2)
-        plot(np.array(range(0, num_of_ang)) * np.pi / num_of_ang,
-             ang_rsp[:, plot_idx])
+        plot(np.array(range(0, num_of_ang)) * np.pi / num_of_ang, ang_rsp[:, plot_idx])
 
 
 def imshow_filter_optimal_gratings(filters, opt_frq, opt_ang):
-    """ Plot the filters and corresponding optimal gating pattern.
+    """Plot the filters and corresponding optimal gating pattern.
 
     :param filters: Filters to analyze.
     :type filters: numpy array
@@ -555,17 +668,32 @@ def imshow_filter_optimal_gratings(filters, opt_frq, opt_ang):
     vec_y = vec_xy + 1 - vec_x * max_wavelength
     xmatrix = np.tile(vec_x, (output_dim, 1))
     ymatrix = np.tile(vec_y, (output_dim, 1))
-    gratingmatrix = np.cos(frqmatrix * (np.sin(thetamatrix) * xmatrix.transpose() + np.cos(thetamatrix
-                                                                                           ) * ymatrix.transpose()))
-    combinedmatrix = np.concatenate((rescale_data(filters), rescale_data(gratingmatrix)), 1)
-    imshow_matrix(tile_matrix_rows(combinedmatrix, max_wavelength, max_wavelength, 2, output_dim, border_size=1,
-                                   normalized=False), 'optimal grating')
+    gratingmatrix = np.cos(
+        frqmatrix
+        * (
+            np.sin(thetamatrix) * xmatrix.transpose()
+            + np.cos(thetamatrix) * ymatrix.transpose()
+        )
+    )
+    combinedmatrix = np.concatenate(
+        (rescale_data(filters), rescale_data(gratingmatrix)), 1
+    )
+    imshow_matrix(
+        tile_matrix_rows(
+            combinedmatrix,
+            max_wavelength,
+            max_wavelength,
+            2,
+            output_dim,
+            border_size=1,
+            normalized=False,
+        ),
+        "optimal grating",
+    )
 
 
-def imshow_filter_frequency_angle_histogram(opt_frq,
-                                            opt_ang,
-                                            max_wavelength=14):
-    """ lots the histograms of the optimal frequencies and angles.
+def imshow_filter_frequency_angle_histogram(opt_frq, opt_ang, max_wavelength=14):
+    """lots the histograms of the optimal frequencies and angles.
 
     :param opt_frq: Optimal frequencies.
     :type opt_frq: int
@@ -576,7 +704,7 @@ def imshow_filter_frequency_angle_histogram(opt_frq,
     :param max_wavelength: Maximal wavelength.
     :type max_wavelength: int
     """
-    figure().suptitle('Filter Frequency histogram \t\t\t Filter Angle ' + 'histogram')
+    figure().suptitle("Filter Frequency histogram \t\t\t Filter Angle " + "histogram")
     subplot(1, 2, 1)
     hist(opt_frq, max_wavelength - 1, (2, 14), normed=1)
     ylim((0, 1))
@@ -586,7 +714,7 @@ def imshow_filter_frequency_angle_histogram(opt_frq,
 
 
 def filter_frequency_and_angle(filters, num_of_angles=40):
-    """ Analyze the filters by calculating the responses when gratings, i.e. sinusoidal functions, are input to them.
+    """Analyze the filters by calculating the responses when gratings, i.e. sinusoidal functions, are input to them.
 
     :Info: Hyv/"arinen, A. et al. (2009) Natural image statistics, Page 144-146
 
@@ -606,7 +734,7 @@ def filter_frequency_and_angle(filters, num_of_angles=40):
 
 
 def filter_frequency_response(filters, num_of_angles=40):
-    """ Compute the response of filters w.r.t. different frequency.
+    """Compute the response of filters w.r.t. different frequency.
 
     :param filters: Filters to analyze
     :type filters: numpy array
@@ -641,7 +769,10 @@ def filter_frequency_response(filters, num_of_angles=40):
         gratingmatrix_sin = numx.sin(2 * numx.pi * alpha * umatrix)
         # cosine gratings of all angles under a specific freq.
         gratingmatrix_cos = numx.cos(2 * numx.pi * alpha * umatrix)
-        rsp_fix_frq = (numx.dot(gratingmatrix_sin, filters) ** 2 + numx.dot(gratingmatrix_cos, filters) ** 2)
+        rsp_fix_frq = (
+            numx.dot(gratingmatrix_sin, filters) ** 2
+            + numx.dot(gratingmatrix_cos, filters) ** 2
+        )
         frq_rsp[frq_idx - 2] = rsp_fix_frq.max(0)
         frq_rsp_ang_idx[frq_idx - 2] = rsp_fix_frq.argmax(0)
 
@@ -649,7 +780,7 @@ def filter_frequency_response(filters, num_of_angles=40):
 
 
 def filter_angle_response(filters, num_of_angles=40):
-    """ Compute the angle response of the given filter.
+    """Compute the angle response of the given filter.
 
     :param filters: Filters to analyze
     :type filters: numpy array
@@ -681,18 +812,18 @@ def filter_angle_response(filters, num_of_angles=40):
         umatrix = numx.sin(theta) * xmatrix + numx.cos(theta) * ymatrix
         gratingmatrix_sin = numx.sin(frqmatrix.transpose() * umatrix)
         gratingmatrix_cos = numx.cos(frqmatrix.transpose() * umatrix)
-        rsp_fix_ang = (numx.dot(gratingmatrix_sin, filters) ** 2
-                       + numx.dot(gratingmatrix_cos, filters) ** 2)
+        rsp_fix_ang = (
+            numx.dot(gratingmatrix_sin, filters) ** 2
+            + numx.dot(gratingmatrix_cos, filters) ** 2
+        )
         ang_rsp[ang_idx] = rsp_fix_ang.max(0)
         ang_rsp_frq_idx[ang_idx] = rsp_fix_ang.argmax(0)
 
     return ang_rsp, ang_rsp_frq_idx
 
 
-def calculate_amari_distance(matrix_one,
-                             matrix_two,
-                             version=1):
-    """ Calculate the Amari distance between two input matrices.
+def calculate_amari_distance(matrix_one, matrix_two, version=1):
+    """Calculate the Amari distance between two input matrices.
 
     :param matrix_one: the first matrix
     :type matrix_one: numpy array
@@ -708,8 +839,7 @@ def calculate_amari_distance(matrix_one,
     """
     if matrix_one.shape != matrix_two.shape:
         return "Two matrices must have the same shape."
-    product_matrix = numx.abs(numx.dot(matrix_one,
-                                       numx.linalg.inv(matrix_two)))
+    product_matrix = numx.abs(numx.dot(matrix_one, numx.linalg.inv(matrix_two)))
 
     product_matrix_max_col = numx.array(product_matrix.max(0))
     product_matrix_max_row = numx.array(product_matrix.max(1))

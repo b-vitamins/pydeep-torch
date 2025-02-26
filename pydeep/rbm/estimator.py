@@ -1,69 +1,67 @@
-""" This module provides methods for estimating the model performance
-    (running on the CPU). Provided performance measures are for example
-    the reconstruction error (RE) and the log-likelihood (LL). For estimating
-    the LL we need to know the value of the partition function Z. If at least
-    one layer is binary it is possible to calculate the value by factorizing
-    over the binary values. Since it involves calculating all possible binary
-    states, it is only possible for small models i.e. less than 25
-    (e.g. ~2^25 = 33554432 states). For bigger models we can estimate the
-    partition function using annealed importance sampling (AIS).
+"""This module provides methods for estimating the model performance
+(running on the CPU). Provided performance measures are for example
+the reconstruction error (RE) and the log-likelihood (LL). For estimating
+the LL we need to know the value of the partition function Z. If at least
+one layer is binary it is possible to calculate the value by factorizing
+over the binary values. Since it involves calculating all possible binary
+states, it is only possible for small models i.e. less than 25
+(e.g. ~2^25 = 33554432 states). For bigger models we can estimate the
+partition function using annealed importance sampling (AIS).
 
-    :Implemented:
-        - kth order reconstruction error
-        - Log likelihood for visible data.
-        - Log likelihood for hidden data.
-        - True partition by factorization over the visible units.
-        - True partition by factorization over the hidden units.
-        - Annealed importance sampling to approximated the partition function.
-        - Reverse annealed importance sampling to approximated the partition function.
+:Implemented:
+    - kth order reconstruction error
+    - Log likelihood for visible data.
+    - Log likelihood for hidden data.
+    - True partition by factorization over the visible units.
+    - True partition by factorization over the hidden units.
+    - Annealed importance sampling to approximated the partition function.
+    - Reverse annealed importance sampling to approximated the partition function.
 
-    :Info:
-        For the derivations .. seealso::
-        https://www.ini.rub.de/PEOPLE/wiskott/Reprints/Melchior-2012-MasterThesis-RBMs.pdf
+:Info:
+    For the derivations .. seealso::
+    https://www.ini.rub.de/PEOPLE/wiskott/Reprints/Melchior-2012-MasterThesis-RBMs.pdf
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        04.04.2017
+:Date:
+    04.04.2017
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
 import numpy as numx
 import pydeep.base.numpyextension as numxext
 
 
-def reconstruction_error(model,
-                         data,
-                         k=1,
-                         beta=None,
-                         use_states=False,
-                         absolut_error=False):
-    """ This function calculates the reconstruction errors for a given model and data.
+def reconstruction_error(
+    model, data, k=1, beta=None, use_states=False, absolut_error=False
+):
+    """This function calculates the reconstruction errors for a given model and data.
 
     :param model: The model.
     :type model: Valid RBM model
@@ -126,11 +124,8 @@ def reconstruction_error(model,
             return numx.mean(numx.abs(data - vis_probs), axis=1)
 
 
-def log_likelihood_v(model,
-                     logz,
-                     data,
-                     beta=None):
-    """ Computes the log-likelihood (LL) for a given model and visible data given its log partition function.
+def log_likelihood_v(model, logz, data, beta=None):
+    """Computes the log-likelihood (LL) for a given model and visible data given its log partition function.
 
         :Info: logz needs to be the partition function for the same beta (i.e. beta = 1.0)!
 
@@ -159,11 +154,8 @@ def log_likelihood_v(model,
         return model.log_probability_v(logz, data, beta)
 
 
-def log_likelihood_h(model,
-                     logz,
-                     data,
-                     beta=None):
-    """ Computes the log-likelihood (LL) for a given model and hidden data given its log partition function.
+def log_likelihood_h(model, logz, data, beta=None):
+    """Computes the log-likelihood (LL) for a given model and hidden data given its log partition function.
 
         :Info: logz needs to be the partition function for the same beta (i.e. beta = 1.0)!
 
@@ -192,11 +184,10 @@ def log_likelihood_h(model,
         return model.log_probability_v(logz, data, beta)
 
 
-def partition_function_factorize_v(model,
-                                   beta=None,
-                                   batchsize_exponent='AUTO',
-                                   status=False):
-    """ Computes the true partition function for the given model by factoring over the visible units.
+def partition_function_factorize_v(
+    model, beta=None, batchsize_exponent="AUTO", status=False
+):
+    """Computes the true partition function for the given model by factoring over the visible units.
 
         :Info: Exponential increase of computations by the number of visible units. (16 usually ~ 20 seconds)
 
@@ -217,10 +208,10 @@ def partition_function_factorize_v(model,
     """
     if status is True:
         print("Calculating the partition function by factoring over v: ")
-        print('%3.2f%%' % 0.0)
+        print("%3.2f%%" % 0.0)
 
     bit_length = model.input_dim
-    if batchsize_exponent is 'AUTO' or batchsize_exponent > 20:
+    if batchsize_exponent is "AUTO" or batchsize_exponent > 20:
         batchsize_exponent = numx.min([model.input_dim, 12])
     batchsize = numx.power(2, batchsize_exponent)
     num_combinations = numx.power(2, bit_length)
@@ -230,24 +221,28 @@ def partition_function_factorize_v(model,
 
     for batch in range(1, num_batches + 1):
         # Generate current batch
-        bitcombinations = numxext.generate_binary_code(bit_length, batchsize_exponent, batch - 1)
+        bitcombinations = numxext.generate_binary_code(
+            bit_length, batchsize_exponent, batch - 1
+        )
 
         # calculate LL
-        log_prob_vv_all[(batch - 1) * batchsize:batch * batchsize] = model.unnormalized_log_probability_v(
-            bitcombinations, beta).reshape(bitcombinations.shape[0])
+        log_prob_vv_all[(batch - 1) * batchsize : batch * batchsize] = (
+            model.unnormalized_log_probability_v(bitcombinations, beta).reshape(
+                bitcombinations.shape[0]
+            )
+        )
         # print status if wanted
         if status is True:
-            print('%3.2f%%' % (100 * numx.double(batch) / numx.double(num_batches)))
+            print("%3.2f%%" % (100 * numx.double(batch) / numx.double(num_batches)))
 
     # return the log_sum of values
     return numxext.log_sum_exp(log_prob_vv_all)
 
 
-def partition_function_factorize_h(model,
-                                   beta=None,
-                                   batchsize_exponent='AUTO',
-                                   status=False):
-    """ Computes the true partition function for the given model by factoring over the hidden units.
+def partition_function_factorize_h(
+    model, beta=None, batchsize_exponent="AUTO", status=False
+):
+    """Computes the true partition function for the given model by factoring over the hidden units.
 
         :Info: Exponential increase of computations by the number of visible units. (16 usually ~ 20 seconds)
 
@@ -268,10 +263,10 @@ def partition_function_factorize_h(model,
     """
     if status is True:
         print("Calculating the partition function by factoring over h: ")
-        print('%3.2f%%' % 0.0)
+        print("%3.2f%%" % 0.0)
 
     bit_length = model.output_dim
-    if batchsize_exponent is 'AUTO' or batchsize_exponent > 20:
+    if batchsize_exponent is "AUTO" or batchsize_exponent > 20:
         batchsize_exponent = numx.min([model.output_dim, 12])
     batchsize = numx.power(2, batchsize_exponent)
     num_combinations = numx.power(2, bit_length)
@@ -281,25 +276,26 @@ def partition_function_factorize_h(model,
 
     for batch in range(1, num_batches + 1):
         # Generate current batch
-        bitcombinations = numxext.generate_binary_code(bit_length, batchsize_exponent, batch - 1)
+        bitcombinations = numxext.generate_binary_code(
+            bit_length, batchsize_exponent, batch - 1
+        )
 
         # calculate LL
-        log_prob_vv_all[(batch - 1) * batchsize:batch * batchsize] = model.unnormalized_log_probability_h(
-            bitcombinations, beta).reshape(bitcombinations.shape[0])
+        log_prob_vv_all[(batch - 1) * batchsize : batch * batchsize] = (
+            model.unnormalized_log_probability_h(bitcombinations, beta).reshape(
+                bitcombinations.shape[0]
+            )
+        )
 
         # print status if wanted
         if status is True:
-            print('%3.2f%%' % (100 * numx.double(batch) / numx.double(num_batches)))
+            print("%3.2f%%" % (100 * numx.double(batch) / numx.double(num_batches)))
 
     # return the log_sum of values
     return numxext.log_sum_exp(log_prob_vv_all)
 
 
-def annealed_importance_sampling(model,
-                                 num_chains=100,
-                                 k=1,
-                                 betas=10000,
-                                 status=False):
+def annealed_importance_sampling(model, num_chains=100, k=1, betas=10000, status=False):
     """ Approximates the partition function for the given model using annealed importance sampling.
 
     .. seealso:: Accurate and Conservative Estimates of MRF Log-likelihood using Reverse Annealing \
@@ -330,7 +326,9 @@ def annealed_importance_sampling(model,
         betas = numx.linspace(0.0, 1.0, betas)
 
     # Sample the first time from the base model
-    v = model.probability_v_given_h(numx.zeros((num_chains, model.output_dim)), betas[0], True)
+    v = model.probability_v_given_h(
+        numx.zeros((num_chains, model.output_dim)), betas[0], True
+    )
     v = model.sample_v(v, betas[0], True)
 
     # Calculate the unnormalized probabilties of v
@@ -339,14 +337,13 @@ def annealed_importance_sampling(model,
     if status is True:
         t = 1
         print("Calculating the partition function using AIS: ")
-        print('%3.2f%%' % 0.0)
-        print('%3.2f%%' % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
+        print("%3.2f%%" % 0.0)
+        print("%3.2f%%" % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
 
-    for beta in betas[1:betas.shape[0] - 1]:
-
+    for beta in betas[1 : betas.shape[0] - 1]:
         if status is True:
             t += 1
-            print('%3.2f%%' % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
+            print("%3.2f%%" % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
         # Calculate the unnormalized probabilties of v
         lnpvsum += model.unnormalized_log_probability_v(v, beta, True)
 
@@ -368,7 +365,11 @@ def annealed_importance_sampling(model,
 
     # Calculate +/- 3 standard deviations
     lnpvmean = numx.mean(lnpvsum)
-    lnpvstd = numx.log(numx.std(numx.exp(lnpvsum - lnpvmean))) + lnpvmean - numx.log(num_chains) / 2.0
+    lnpvstd = (
+        numx.log(numx.std(numx.exp(lnpvsum - lnpvmean)))
+        + lnpvmean
+        - numx.log(num_chains) / 2.0
+    )
     lnpvstd = numx.vstack((numx.log(3.0) + lnpvstd, logz))
 
     # Calculate partition function of base distribution
@@ -380,17 +381,14 @@ def annealed_importance_sampling(model,
     logz_down = numxext.log_diff_exp(lnpvstd) + baselogz
 
     if status is True:
-        print('%3.2f%%' % 100.0)
+        print("%3.2f%%" % 100.0)
 
     return logz, logz_up, logz_down
 
 
-def reverse_annealed_importance_sampling(model,
-                                         num_chains=100,
-                                         k=1,
-                                         betas=10000,
-                                         status=False,
-                                         data=None):
+def reverse_annealed_importance_sampling(
+    model, num_chains=100, k=1, betas=10000, status=False, data=None
+):
     """ Approximates the partition function for the given model using reverse annealed importance sampling.
 
     .. seealso:: Accurate and Conservative Estimates of MRF Log-likelihood using Reverse Annealing \
@@ -426,7 +424,9 @@ def reverse_annealed_importance_sampling(model,
     if data is None:
         data = numx.zeros((num_chains, model.output_dim))
     else:
-        data = model.sample_h(model.probability_h_given_v(numx.random.permutation(data)[0:num_chains]))
+        data = model.sample_h(
+            model.probability_h_given_v(numx.random.permutation(data)[0:num_chains])
+        )
 
     # Sample the first time from the true model model
     v = model.probability_v_given_h(data, betas[betas.shape[0] - 1], True)
@@ -439,14 +439,13 @@ def reverse_annealed_importance_sampling(model,
     if status is True:
         t = 1
         print("Calculating the partition function using AIS: ")
-        print('%3.2f%%' % (0.0))
-        print('%3.2f%%' % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
+        print("%3.2f%%" % (0.0))
+        print("%3.2f%%" % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
 
-    for beta in reversed(betas[1:betas.shape[0] - 1]):
-
+    for beta in reversed(betas[1 : betas.shape[0] - 1]):
         if status is True:
             t += 1
-            print('%3.2f%%' % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
+            print("%3.2f%%" % (100.0 * numx.double(t) / numx.double(betas.shape[0])))
 
         # Calculate the unnormalized probabilties of v
         lnpvsum -= model.unnormalized_log_probability_v(v, beta, True)
@@ -469,7 +468,11 @@ def reverse_annealed_importance_sampling(model,
 
     # Calculate +/- 3 standard deviations
     lnpvmean = numx.mean(lnpvsum)
-    lnpvstd = numx.log(numx.std(numx.exp(lnpvsum - lnpvmean))) + lnpvmean - numx.log(num_chains) / 2.0
+    lnpvstd = (
+        numx.log(numx.std(numx.exp(lnpvsum - lnpvmean)))
+        + lnpvmean
+        - numx.log(num_chains) / 2.0
+    )
     lnpvstd = numx.vstack((numx.log(3.0) + lnpvstd, logz))
 
     # Calculate partition function of base distribution
@@ -481,6 +484,6 @@ def reverse_annealed_importance_sampling(model,
     logz_down = numxext.log_diff_exp(lnpvstd) + baselogz
 
     if status is True:
-        print('%3.2f%%' % 100.0)
+        print("%3.2f%%" % 100.0)
 
     return logz, logz_up, logz_down

@@ -1,38 +1,38 @@
-""" This module contains the weight layer for DBMs.
+"""This module contains the weight layer for DBMs.
 
-    :Implemented:
-        - DBM model
+:Implemented:
+    - DBM model
 
-    :Version:
-        1.0.0
+:Version:
+    1.0.0
 
-    :Date:
-        26.05.2019
+:Date:
+    26.05.2019
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2019 Jan Melchior
+    Copyright (C) 2019 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
@@ -42,21 +42,23 @@ from scipy.signal import convolve2d
 
 
 class Weight_layer(object):
-    ''' This class implements a weight layer that connects one unit
-        layer to another.
+    """This class implements a weight layer that connects one unit
+    layer to another.
 
-    '''
+    """
 
     @classmethod
-    def generate_2D_connection_matrix(cls,
-                                      input_x_dim,
-                                      input_y_dim,
-                                      field_x_dim,
-                                      field_y_dim,
-                                      overlap_x_dim,
-                                      overlap_y_dim,
-                                      wrap_around=True):
-        ''' This function constructs a connection matrix, which can be
+    def generate_2D_connection_matrix(
+        cls,
+        input_x_dim,
+        input_y_dim,
+        field_x_dim,
+        field_y_dim,
+        overlap_x_dim,
+        overlap_y_dim,
+        wrap_around=True,
+    ):
+        """This function constructs a connection matrix, which can be
             used to force the weights to have local receptive fields.
 
         :Parameters:
@@ -85,7 +87,7 @@ class Weight_layer(object):
             Connection matrix.
            -type: numpy arrays [input dim, output dim]
 
-        '''
+        """
         if field_x_dim > input_x_dim:
             raise NotImplementedError("field_x_dim > input_x_dim is invalid!")
         if field_y_dim > input_y_dim:
@@ -119,13 +121,15 @@ class Weight_layer(object):
                     matrix = numx.vstack((matrix, column))
         return matrix.T
 
-    def __init__(self,
-                 input_dim,
-                 output_dim,
-                 initial_weights='AUTO',
-                 connections=None,
-                 dtype=numx.float64):
-        ''' This function initializes the weight layer.
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        initial_weights="AUTO",
+        connections=None,
+        dtype=numx.float64,
+    ):
+        """This function initializes the weight layer.
 
         :Parameters:
             input_dim:          Input dimension.
@@ -148,7 +152,7 @@ class Weight_layer(object):
                                 -type: numpy.float32 or numpy.float64 or
                                        numpy.longdouble
 
-        '''
+        """
         # Set internal datatype
         self.dtype = dtype
 
@@ -161,37 +165,48 @@ class Weight_layer(object):
         # Scalar -> Small Gaussian distributed random values with std_dev
         #           initial_weights
         # Array  -> The corresponding values are used
-        if initial_weights is 'AUTO':
-            self.weights = numx.array((2.0 * numx.random.rand(self.input_dim,
-                                                              self.output_dim) - 1.0)
-                                      * (4.0 * numx.sqrt(6.0 / (self.input_dim
-                                                                + self.output_dim)))
-                                      , dtype=dtype)
+        if initial_weights is "AUTO":
+            self.weights = numx.array(
+                (2.0 * numx.random.rand(self.input_dim, self.output_dim) - 1.0)
+                * (4.0 * numx.sqrt(6.0 / (self.input_dim + self.output_dim))),
+                dtype=dtype,
+            )
         else:
-            if (numx.isscalar(initial_weights)):
-                self.weights = numx.array(numx.random.randn(self.input_dim,
-                                                            self.output_dim)
-                                          * initial_weights, dtype=dtype)
+            if numx.isscalar(initial_weights):
+                self.weights = numx.array(
+                    numx.random.randn(self.input_dim, self.output_dim)
+                    * initial_weights,
+                    dtype=dtype,
+                )
             else:
-                if initial_weights.shape[0] != self.input_dim or initial_weights.shape[1] != self.output_dim or len(
-                        initial_weights.shape) != 2:
+                if (
+                    initial_weights.shape[0] != self.input_dim
+                    or initial_weights.shape[1] != self.output_dim
+                    or len(initial_weights.shape) != 2
+                ):
                     raise NotImplementedError(
-                        "Initial weight matrix must habe the shape defined by input_dim and output_dim!")
+                        "Initial weight matrix must habe the shape defined by input_dim and output_dim!"
+                    )
                 else:
                     self.weights = numx.array(initial_weights, dtype=dtype)
 
         # Set connection matrix
         self.connections = None
         if connections != None:
-            if connections.shape[0] != self.input_dim or connections.shape[1] != self.output_dim or len(
-                    connections.shape) != 2:
-                raise NotImplementedError("Connections matrix must have the shape defined by input_dim and output_dim!")
+            if (
+                connections.shape[0] != self.input_dim
+                or connections.shape[1] != self.output_dim
+                or len(connections.shape) != 2
+            ):
+                raise NotImplementedError(
+                    "Connections matrix must have the shape defined by input_dim and output_dim!"
+                )
             else:
                 self.connections = numx.array(connections, dtype=dtype)
                 self.weights *= self.connections
 
     def propagate_up(self, bottom_up_states):
-        ''' This function propagates the input to the next layer.
+        """This function propagates the input to the next layer.
 
         :Parameters:
             bottom_up_states: States of the unit layer below.
@@ -201,11 +216,11 @@ class Weight_layer(object):
             Top down states.
            -type: numpy arrays [batch_size, output dim]
 
-        '''
+        """
         return numx.dot(bottom_up_states, self.weights)
 
     def propagate_down(self, top_down_states):
-        ''' This function propagates the output to the previous layer.
+        """This function propagates the output to the previous layer.
 
         :Parameters:
             top_down_states: States of the unit layer above.
@@ -215,17 +230,19 @@ class Weight_layer(object):
             Bottom up states.
            -type: numpy arrays [batch_size, input dim]
 
-        '''
+        """
         return numx.dot(top_down_states, self.weights.T)
 
-    def calculate_weight_gradients(self,
-                                   bottom_up_pos,
-                                   top_down_pos,
-                                   bottom_up_neg,
-                                   top_down_neg,
-                                   offset_bottom_up,
-                                   offset_top_down):
-        ''' This function calculates the average gradient from input
+    def calculate_weight_gradients(
+        self,
+        bottom_up_pos,
+        top_down_pos,
+        bottom_up_neg,
+        top_down_neg,
+        offset_bottom_up,
+        offset_top_down,
+    ):
+        """This function calculates the average gradient from input
             and output samples of positive and negative sampling phase.
 
         :Parameters:
@@ -251,16 +268,20 @@ class Weight_layer(object):
             Weight gradient.
            -type: numpy arrays [input dim, output dim]
 
-        '''
-        pos = numx.dot((bottom_up_pos - offset_bottom_up).T, (top_down_pos - offset_top_down))
-        neg = numx.dot((bottom_up_neg - offset_bottom_up).T, (top_down_neg - offset_top_down))
+        """
+        pos = numx.dot(
+            (bottom_up_pos - offset_bottom_up).T, (top_down_pos - offset_top_down)
+        )
+        neg = numx.dot(
+            (bottom_up_neg - offset_bottom_up).T, (top_down_neg - offset_top_down)
+        )
         grad = (pos - neg) / bottom_up_pos.shape[0]
         if self.connections != None:
             grad *= self.connections
         return grad
 
     def update_weights(self, weight_updates, restriction, restriction_typ):
-        ''' This function updates the weight parameters.
+        """This function updates the weight parameters.
 
         :Parameters:
             weight_updates:     Update for the weight parameter.
@@ -278,25 +299,25 @@ class Weight_layer(object):
                                 or the matrix absolut values.
                                -type: string
 
-        '''
+        """
 
         # Restricts the gradient
         if numx.isscalar(restriction):
             if restriction > 0:
-                if restriction_typ is 'Cols':
+                if restriction_typ is "Cols":
                     weight_updates = numxExt.restrict_norms(
-                        weight_updates,
-                        restriction, 0)
-                if restriction_typ is 'Rows':
+                        weight_updates, restriction, 0
+                    )
+                if restriction_typ is "Rows":
                     weight_updates = numxExt.restrict_norms(
-                        weight_updates,
-                        restriction, 1)
-                if restriction_typ is 'Mat':
+                        weight_updates, restriction, 1
+                    )
+                if restriction_typ is "Mat":
                     weight_updates = numxExt.restrict_norms(
-                        weight_updates,
-                        restriction, None)
+                        weight_updates, restriction, None
+                    )
 
-                if restriction_typ is 'Val':
+                if restriction_typ is "Val":
                     numx.clip(weight_updates, -restriction, restriction, weight_updates)
 
         # Update weights
@@ -304,14 +325,14 @@ class Weight_layer(object):
 
 
 class Convolving_weight_layer(Weight_layer):
-    ''' This class implements a weight layer that connects one unit
-        layer to another with convolutional weights.
+    """This class implements a weight layer that connects one unit
+    layer to another with convolutional weights.
 
-    '''
+    """
 
     @classmethod
     def construct_gauss_filter(cls, width, height, variance=1.0):
-        ''' This function constructs a 2D-Gauss filter.
+        """This function constructs a 2D-Gauss filter.
 
         :Parameters:
             width:     Filter width.
@@ -328,7 +349,7 @@ class Convolving_weight_layer(Weight_layer):
             Convolved matrix with the same shape as matrix.
            -type: 2D numpy arrays
 
-        '''
+        """
         if width % 2 == 0:
             print("Width needs to be odd!")
             pass
@@ -340,12 +361,13 @@ class Convolving_weight_layer(Weight_layer):
         mat = numx.zeros((width, height))
         for x in range(0, width):
             for y in range(0, height):
-                mat[x, y] = (numx.exp(-0.5 * ((x - lowerW) ** 2 + (y - lowerH) ** 2) / variance)) / (
-                        2 * numx.pi * variance)
+                mat[x, y] = (
+                    numx.exp(-0.5 * ((x - lowerW) ** 2 + (y - lowerH) ** 2) / variance)
+                ) / (2 * numx.pi * variance)
         return mat / numx.sum(mat)
 
     def _convolve(self, matrix, mask):
-        ''' This function performs a 2D convolution on every column of a given matrix.
+        """This function performs a 2D convolution on every column of a given matrix.
 
         :Parameters:
             matrix: 2D-input matrix.
@@ -359,22 +381,26 @@ class Convolving_weight_layer(Weight_layer):
             Convolved matrix with the same shape as matrix.
            -type: 2D numpy arrays
 
-        '''
+        """
         s = numx.int32(numx.sqrt(matrix.shape[1]))
         result = numx.empty(matrix.shape)
         for i in range(matrix.shape[0]):
             temp = matrix[i].reshape(s, s)
-            result[i] = convolve2d(temp, mask, mode='same', boundary='wrap').reshape(matrix.shape[1])
+            result[i] = convolve2d(temp, mask, mode="same", boundary="wrap").reshape(
+                matrix.shape[1]
+            )
         return result
 
-    def __init__(self,
-                 input_dim,
-                 output_dim,
-                 mask,
-                 initial_weights='AUTO',
-                 connections=None,
-                 dtype=numx.float64):
-        ''' This function initializes the convolutional weight layer.
+    def __init__(
+        self,
+        input_dim,
+        output_dim,
+        mask,
+        initial_weights="AUTO",
+        connections=None,
+        dtype=numx.float64,
+    ):
+        """This function initializes the convolutional weight layer.
 
         :Parameters:
             input_dim:          Input dimension.
@@ -401,25 +427,28 @@ class Convolving_weight_layer(Weight_layer):
                                 -type: numpy.float32 or numpy.float64 or
                                        numpy.longdouble
 
-        '''
-        super(Convolving_weight_layer,
-              self).__init__(input_dim=input_dim,
-                             output_dim=output_dim,
-                             initial_weights=initial_weights,
-                             connections=connections,
-                             dtype=dtype)
+        """
+        super(Convolving_weight_layer, self).__init__(
+            input_dim=input_dim,
+            output_dim=output_dim,
+            initial_weights=initial_weights,
+            connections=connections,
+            dtype=dtype,
+        )
         self.mask = mask
         self.orginalW = numx.copy(self.weights)
         self.weights = self._convolve(self.orginalW, self.mask)
 
-    def calculate_weight_gradients(self,
-                                   bottom_up_pos,
-                                   top_down_pos,
-                                   bottom_up_neg,
-                                   top_down_neg,
-                                   offset_bottom_up,
-                                   offset_top_down):
-        ''' This function calculates the average gradient from input
+    def calculate_weight_gradients(
+        self,
+        bottom_up_pos,
+        top_down_pos,
+        bottom_up_neg,
+        top_down_neg,
+        offset_bottom_up,
+        offset_top_down,
+    ):
+        """This function calculates the average gradient from input
             and output samples of positive and negative sampling phase.
 
         :Parameters:
@@ -445,18 +474,22 @@ class Convolving_weight_layer(Weight_layer):
             Weight gradient.
            -type: numpy arrays [input dim, output dim]
 
-        '''
-        pos = numx.dot((bottom_up_pos - offset_bottom_up).T,
-                       (self._convolve(top_down_pos - offset_top_down, self.mask)))
-        neg = numx.dot((bottom_up_neg - offset_bottom_up).T,
-                       (self._convolve(top_down_neg - offset_top_down, self.mask)))
+        """
+        pos = numx.dot(
+            (bottom_up_pos - offset_bottom_up).T,
+            (self._convolve(top_down_pos - offset_top_down, self.mask)),
+        )
+        neg = numx.dot(
+            (bottom_up_neg - offset_bottom_up).T,
+            (self._convolve(top_down_neg - offset_top_down, self.mask)),
+        )
         grad = (pos - neg) / bottom_up_pos.shape[0]
         if self.connections != None:
             grad *= self.connections
         return grad
 
     def update_weights(self, weight_updates, restriction, restriction_typ):
-        ''' This function updates the weight parameters.
+        """This function updates the weight parameters.
 
         :Parameters:
             weight_updates:     Update for the weight parameter.
@@ -474,27 +507,27 @@ class Convolving_weight_layer(Weight_layer):
                                 or the matrix absolut values.
                                -type: string
 
-        '''
+        """
         # Update weights
         self.orginalW += weight_updates
 
         # Restricts the gradient
         if numx.isscalar(restriction):
             if restriction > 0:
-                if restriction_typ is 'Cols':
+                if restriction_typ is "Cols":
                     self.orginalW = numxExt.restrict_norms(
-                        self.orginalW,
-                        restriction, 0)
-                if restriction_typ is 'Rows':
+                        self.orginalW, restriction, 0
+                    )
+                if restriction_typ is "Rows":
                     self.orginalW = numxExt.restrict_norms(
-                        self.orginalW,
-                        restriction, 1)
-                if restriction_typ is 'Mat':
+                        self.orginalW, restriction, 1
+                    )
+                if restriction_typ is "Mat":
                     self.orginalW = numxExt.restrict_norms(
-                        self.orginalW,
-                        restriction, None)
+                        self.orginalW, restriction, None
+                    )
 
-                if restriction_typ is 'Val':
+                if restriction_typ is "Val":
                     numx.clip(self.orginalW, -restriction, restriction, self.orginalW)
 
         self.weights = self._convolve(self.orginalW, self.mask)

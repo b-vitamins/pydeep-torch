@@ -1,53 +1,54 @@
-''' This module provides different math functions that extend the numpy library.
+"""This module provides different math functions that extend the numpy library.
 
-    :Implemented:
-        - log_sum_exp
-        - log_diff_exp
-        - get_norms
-        - multinominal_batch_sampling
-        - restrict_norms
-        - resize_norms
-        - angle_between_vectors
-        - get_2D_gauss_kernel
-        - generate_binary_code
-        - get_binary_label
-        - compare_index_of_max
-        - shuffle_dataset
-        - rotationSequence
-        - generate_2D_connection_matrix
+:Implemented:
+    - log_sum_exp
+    - log_diff_exp
+    - get_norms
+    - multinominal_batch_sampling
+    - restrict_norms
+    - resize_norms
+    - angle_between_vectors
+    - get_2D_gauss_kernel
+    - generate_binary_code
+    - get_binary_label
+    - compare_index_of_max
+    - shuffle_dataset
+    - rotationSequence
+    - generate_2D_connection_matrix
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        13.03.2017
+:Date:
+    13.03.2017
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
+
 import numpy as numx
 from scipy.ndimage.interpolation import rotate
 
@@ -87,9 +88,13 @@ def log_diff_exp(x, axis=0):
     """
     alpha = x.max(axis) - numx.log(numx.finfo(numx.float64).max) / 2.0
     if axis == 1:
-        return numx.squeeze(alpha + numx.log(numx.diff(numx.exp(x.T - alpha), n=1, axis=0)))
+        return numx.squeeze(
+            alpha + numx.log(numx.diff(numx.exp(x.T - alpha), n=1, axis=0))
+        )
     else:
-        return numx.squeeze(alpha + numx.log(numx.diff(numx.exp(x - alpha), n=1, axis=0)))
+        return numx.squeeze(
+            alpha + numx.log(numx.diff(numx.exp(x - alpha), n=1, axis=0))
+        )
 
 
 def multinominal_batch_sampling(probabilties, isnormalized=True):
@@ -115,7 +120,7 @@ def multinominal_batch_sampling(probabilties, isnormalized=True):
 
 
 def get_norms(matrix, axis=0):
-    """ Computes the norms of the matrix along a given axis.
+    """Computes the norms of the matrix along a given axis.
 
     :param matrix: Matrix to get the norm of.
     :type matrix: numpy array [num rows, num columns]
@@ -130,7 +135,7 @@ def get_norms(matrix, axis=0):
 
 
 def restrict_norms(matrix, max_norm, axis=0):
-    """ This function restricts a matrix, its columns or rows to a given norm.
+    """This function restricts a matrix, its columns or rows to a given norm.
 
     :param matrix: Matrix that should be restricted.
     :type matrix: numpy array [num rows, num columns]
@@ -150,7 +155,6 @@ def restrict_norms(matrix, max_norm, axis=0):
         if norm > max_norm:
             res *= max_norm / norm
     else:
-
         # If no value is bigger than max_norm/SQRT(N) then the norm is smaller
         # as the threshold!
         if numx.max(res) > max_norm / numx.sqrt(res.shape[numx.abs(1 - axis)]):
@@ -167,7 +171,7 @@ def restrict_norms(matrix, max_norm, axis=0):
 
 
 def resize_norms(matrix, norm, axis=0):
-    """ This function resizes a matrix, its columns or rows to a given norm.
+    """This function resizes a matrix, its columns or rows to a given norm.
 
     :param matrix: Matrix that should be resized.
     :type matrix: numpy array [num rows, num columns]
@@ -186,7 +190,6 @@ def resize_norms(matrix, norm, axis=0):
         norm_temp = numx.sqrt(numx.sum(res * res))
         res *= norm / norm_temp
     else:
-
         # Calculate norms
         norms = get_norms(res, axis=axis)
         # Restrict the vectors
@@ -199,7 +202,7 @@ def resize_norms(matrix, norm, axis=0):
 
 
 def angle_between_vectors(v1, v2, degree=True):
-    """ Computes the angle between two vectors.
+    """Computes the angle between two vectors.
 
     :param v1: Vector 1.
     :type v1: numpy array
@@ -223,7 +226,7 @@ def angle_between_vectors(v1, v2, degree=True):
 
 
 def get_2d_gauss_kernel(width, height, shift=0, var=[1.0, 1.0]):
-    """ Creates a 2D Gauss kernel of size NxM with variance 1.
+    """Creates a 2D Gauss kernel of size NxM with variance 1.
 
     :param width: Number of pixels first dimension.
     :type width: int
@@ -247,8 +250,16 @@ def get_2d_gauss_kernel(width, height, shift=0, var=[1.0, 1.0]):
     """
 
     def gauss(xy, mean, covariance):
-        return 1.0 / (2.0 * numx.pi * numx.sqrt(numx.linalg.det(covariance))) * numx.exp(-0.5 * numx.dot(
-            numx.dot((xy - mean).T, numx.linalg.inv(covariance)), xy - mean))
+        return (
+            1.0
+            / (2.0 * numx.pi * numx.sqrt(numx.linalg.det(covariance)))
+            * numx.exp(
+                -0.5
+                * numx.dot(
+                    numx.dot((xy - mean).T, numx.linalg.inv(covariance)), xy - mean
+                )
+            )
+        )
 
     if numx.isscalar(shift):
         m = numx.array([shift, shift])
@@ -274,7 +285,9 @@ def get_2d_gauss_kernel(width, height, shift=0, var=[1.0, 1.0]):
     mat = numx.zeros((width, height))
     for x in range(0, width):
         for y in range(0, height):
-            mat[x, y] = gauss(numx.array([x - lowern, y - lowerm]), mean=m, covariance=covar)
+            mat[x, y] = gauss(
+                numx.array([x - lowern, y - lowerm]), mean=m, covariance=covar
+            )
     return mat
 
 
@@ -304,7 +317,7 @@ def generate_binary_code(bit_length, batch_size_exp=None, batch_number=0):
     # No batch size is given, all data is returned
     if batch_size_exp is None:
         batch_size_exp = bit_length
-    batch_size = 2 ** batch_size_exp
+    batch_size = 2**batch_size_exp
     # Generate batch
     bit_combinations = numx.zeros((batch_size, bit_length))
     for number in range(batch_size):
@@ -318,7 +331,7 @@ def generate_binary_code(bit_length, batch_size_exp=None, batch_number=0):
 
 
 def get_binary_label(int_array):
-    """ This function converts a 1D-array with integers labels into a 2D-array containing binary labels.
+    """This function converts a 1D-array with integers labels into a 2D-array containing binary labels.
 
         :Example: | -> [3,1,0]|
                   | -> [[1,0,0,0],[0,0,1,0],[0,0,0,1]]
@@ -337,7 +350,7 @@ def get_binary_label(int_array):
 
 
 def compare_index_of_max(output, target):
-    """ Compares data rows by comparing the index of the maximal value e.g. Classifier output and true labels.
+    """Compares data rows by comparing the index of the maximal value e.g. Classifier output and true labels.
 
         :Example: | [0.3,0.5,0.2],[0.2,0.6,0.2] -> 0
                   | [0.3,0.5,0.2],[0.6,0.2,0.2] -> 1
@@ -355,7 +368,7 @@ def compare_index_of_max(output, target):
 
 
 def shuffle_dataset(data, label):
-    """ Shuffles the data points and the labels correspondingly.
+    """Shuffles the data points and the labels correspondingly.
 
     :param data: Datapoints.
     :type data: numpy array [num_datapoints, dim_datapoints]
@@ -371,7 +384,7 @@ def shuffle_dataset(data, label):
 
 
 def rotation_sequence(image, width, height, steps):
-    """ Rotates a 2D image given as a 1D vector with shape[width*height] in 'steps' number of steps.
+    """Rotates a 2D image given as a 1D vector with shape[width*height] in 'steps' number of steps.
 
     :param image: Image as 1D vector.
     :type image: int
@@ -393,22 +406,24 @@ def rotation_sequence(image, width, height, steps):
     for i in range(1, steps):
         angle = i * 360.0 / steps
         sample = rotate(image.reshape(width, height), angle)
-        sample = sample[(sample.shape[0] - width) // 2:
-                        (sample.shape[0] + width) // 2,
-                        (sample.shape[0] - height) // 2:
-                        (sample.shape[0] + height) // 2]
+        sample = sample[
+            (sample.shape[0] - width) // 2 : (sample.shape[0] + width) // 2,
+            (sample.shape[0] - height) // 2 : (sample.shape[0] + height) // 2,
+        ]
 
         results[i] = sample.reshape(1, image.shape[0])
     return results
 
 
-def generate_2d_connection_matrix(input_x_dim,
-                                  input_y_dim,
-                                  field_x_dim,
-                                  field_y_dim,
-                                  overlap_x_dim,
-                                  overlap_y_dim,
-                                  wrap_around=True):
+def generate_2d_connection_matrix(
+    input_x_dim,
+    input_y_dim,
+    field_x_dim,
+    field_y_dim,
+    overlap_x_dim,
+    overlap_y_dim,
+    wrap_around=True,
+):
     """ This function constructs a connection matrix, which can be used to force the weights to have local receptive \
         fields.
 

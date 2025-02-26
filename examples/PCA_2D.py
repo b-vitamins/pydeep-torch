@@ -1,35 +1,35 @@
-""" Example for the Principal Component Analysis on a 2D example.
+"""Example for the Principal Component Analysis on a 2D example.
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        22.04.2017
+:Date:
+    22.04.2017
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 # Import numpy, numpy extensions, PCA, 2D linear mixture, and visualization module
@@ -43,9 +43,7 @@ import pydeep.misc.visualization as vis
 numx.random.seed(42)
 
 # Create 2D linear mixture, 50000 samples, mean = 0, std = 3
-data, _ = generate_2d_mixtures(num_samples=50000,
-                               mean=0.0,
-                               scale=3.0)
+data, _ = generate_2d_mixtures(num_samples=50000, mean=0.0, scale=3.0)
 
 # PCA
 pca = PCA(data.shape[1])
@@ -61,16 +59,16 @@ scale_factor = 3
 vis.figure(0, figsize=[7, 7])
 vis.title("Data with estimated principal components")
 vis.plot_2d_data(data)
-vis.plot_2d_weights(scale_factor*pca.projection_matrix)
-vis.axis('equal')
+vis.plot_2d_weights(scale_factor * pca.projection_matrix)
+vis.axis("equal")
 vis.axis([-4, 4, -4, 4])
 
 # Figure 2 - Data with estimated principal components in projected space
 vis.figure(2, figsize=[7, 7])
 vis.title("Data with estimated principal components in projected space")
 vis.plot_2d_data(data_pca)
-vis.plot_2d_weights(scale_factor*pca.project(pca.projection_matrix.T))
-vis.axis('equal')
+vis.plot_2d_weights(scale_factor * pca.project(pca.projection_matrix.T))
+vis.axis("equal")
 vis.axis([-4, 4, -4, 4])
 
 # PCA with whitening
@@ -83,7 +81,7 @@ vis.figure(3, figsize=[7, 7])
 vis.title("Data with estimated principal components in whitened space")
 vis.plot_2d_data(data_pca)
 vis.plot_2d_weights(pca.project(pca.projection_matrix.T).T)
-vis.axis('equal')
+vis.axis("equal")
 vis.axis([-4, 4, -4, 4])
 
 # Show all windows

@@ -1,62 +1,64 @@
-""" This module provides basic structural elements, which different models have in common.
+"""This module provides basic structural elements, which different models have in common.
 
-    :Implemented:
-        - BipartiteGraph
-        - StackOfBipartiteGraphs
+:Implemented:
+    - BipartiteGraph
+    - StackOfBipartiteGraphs
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        06.04.2017
+:Date:
+    06.04.2017
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
 import numpy as numx
 from pydeep.base.activationfunction import Sigmoid
 from pydeep.misc.io import save_object
 
 
 class BipartiteGraph(object):
-    """ Implementation of a bipartite graph structure.
-    """
+    """Implementation of a bipartite graph structure."""
 
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 visible_activation_function=Sigmoid,
-                 hidden_activation_function=Sigmoid,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        visible_activation_function=Sigmoid,
+        hidden_activation_function=Sigmoid,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data structures. It is recommended to pass the \
             training data to initialize the network automatically.
 
@@ -113,7 +115,9 @@ class BipartiteGraph(object):
             if isinstance(data, list):
                 data = numx.concatenate(data)
             if self.input_dim != data.shape[1]:
-                raise ValueError("Data dimension and model input dimension have to be equal!")
+                raise ValueError(
+                    "Data dimension and model input dimension have to be equal!"
+                )
             self._data_mean = data.mean(axis=0).reshape(1, data.shape[1])
             self._data_std = data.std(axis=0).reshape(1, data.shape[1])
 
@@ -122,13 +126,19 @@ class BipartiteGraph(object):
         # Scalar -> Small Gaussian distributed random values with std_dev
         #           initial_weights
         # Array  -> The corresponding values are used
-        if initial_weights is 'AUTO':
-            self.w = numx.array((2.0 * numx.random.rand(self.input_dim, self.output_dim) - 1.0) * (
-                4.0 * numx.sqrt(6.0 / (self.input_dim + self.output_dim))),
-                                dtype=dtype)
+        if initial_weights is "AUTO":
+            self.w = numx.array(
+                (2.0 * numx.random.rand(self.input_dim, self.output_dim) - 1.0)
+                * (4.0 * numx.sqrt(6.0 / (self.input_dim + self.output_dim))),
+                dtype=dtype,
+            )
         else:
             if numx.isscalar(initial_weights):
-                self.w = numx.array(numx.random.randn(self.input_dim, self.output_dim) * initial_weights, dtype=dtype)
+                self.w = numx.array(
+                    numx.random.randn(self.input_dim, self.output_dim)
+                    * initial_weights,
+                    dtype=dtype,
+                )
             else:
                 self.w = numx.array(initial_weights, dtype=dtype)
 
@@ -137,7 +147,7 @@ class BipartiteGraph(object):
         # Scalar -> Initialized to given value
         # Array  -> The corresponding values are used
         self.ov = numx.zeros((1, self.input_dim))
-        if initial_visible_offsets is 'AUTO':
+        if initial_visible_offsets is "AUTO":
             if data is not None:
                 self.ov += self._data_mean
             else:
@@ -154,19 +164,24 @@ class BipartiteGraph(object):
         #           data == Initialized to randn()*0.01
         # Scalar -> Initialized to given value + randn()*0.01
         # Array  -> The corresponding values are used
-        if initial_visible_bias is 'AUTO':
+        if initial_visible_bias is "AUTO":
             if data is None:
                 self.bv = numx.zeros((1, self.input_dim))
             else:
-                self.bv = numx.array(Sigmoid.g(numx.clip(self._data_mean, 0.001, 0.999)), dtype=dtype
-                                     ).reshape(self.ov.shape)
+                self.bv = numx.array(
+                    Sigmoid.g(numx.clip(self._data_mean, 0.001, 0.999)), dtype=dtype
+                ).reshape(self.ov.shape)
         else:
-            if initial_visible_bias is 'INVERSE_SIGMOID':
-                self.bv = numx.array(Sigmoid.g(numx.clip(self.ov, 0.001, 0.999)), dtype=dtype
-                                     ).reshape(1, self.input_dim)
+            if initial_visible_bias is "INVERSE_SIGMOID":
+                self.bv = numx.array(
+                    Sigmoid.g(numx.clip(self.ov, 0.001, 0.999)), dtype=dtype
+                ).reshape(1, self.input_dim)
             else:
                 if numx.isscalar(initial_visible_bias):
-                    self.bv = numx.array(initial_visible_bias + numx.zeros((1, self.input_dim)), dtype=dtype)
+                    self.bv = numx.array(
+                        initial_visible_bias + numx.zeros((1, self.input_dim)),
+                        dtype=dtype,
+                    )
                 else:
                     self.bv = numx.array(initial_visible_bias, dtype=dtype)
 
@@ -174,7 +189,7 @@ class BipartiteGraph(object):
         # Scalar -> Initialized to given value
         # Array  -> The corresponding values are used
         self.oh = numx.zeros((1, self.output_dim))
-        if initial_hidden_offsets is 'AUTO':
+        if initial_hidden_offsets is "AUTO":
             self.oh += 0.5
         else:
             if numx.isscalar(initial_hidden_offsets):
@@ -186,20 +201,24 @@ class BipartiteGraph(object):
         # AUTO   -> Initialized to randn()*0.01
         # Scalar -> Initialized to given value + randn()*0.01
         # Array  -> The corresponding values are used
-        if initial_hidden_bias is 'AUTO':
+        if initial_hidden_bias is "AUTO":
             self.bh = numx.zeros((1, self.output_dim))
         else:
-            if initial_hidden_bias is 'INVERSE_SIGMOID':
+            if initial_hidden_bias is "INVERSE_SIGMOID":
                 self.bh = numx.array(
-                    Sigmoid.g(numx.clip(self.oh, 0.001, 0.999)), dtype=dtype).reshape(self.oh.shape)
+                    Sigmoid.g(numx.clip(self.oh, 0.001, 0.999)), dtype=dtype
+                ).reshape(self.oh.shape)
             else:
                 if numx.isscalar(initial_hidden_bias):
-                    self.bh = numx.array(initial_hidden_bias + numx.zeros((1, self.output_dim)), dtype=dtype)
+                    self.bh = numx.array(
+                        initial_hidden_bias + numx.zeros((1, self.output_dim)),
+                        dtype=dtype,
+                    )
                 else:
                     self.bh = numx.array(initial_hidden_bias, dtype=dtype)
 
     def _visible_pre_activation(self, h):
-        """ Computes the visible pre-activations from hidden activations.
+        """Computes the visible pre-activations from hidden activations.
 
         :param h: Hidden activations.
         :type h: numpy array [num data points, output_dim]
@@ -210,7 +229,7 @@ class BipartiteGraph(object):
         return numx.dot(h - self.oh, self.w.T) + self.bv
 
     def _visible_post_activation(self, pre_act_v):
-        """ Computes the visible (post) activations from visible pre-activations.
+        """Computes the visible (post) activations from visible pre-activations.
 
         :param pre_act_v: Visible pre-activations.
         :type pre_act_v: numpy array [num data points, input_dim]
@@ -221,7 +240,7 @@ class BipartiteGraph(object):
         return self.visible_activation_function.f(pre_act_v)
 
     def visible_activation(self, h):
-        """ Computes the visible (post) activations from hidden activations.
+        """Computes the visible (post) activations from hidden activations.
 
         :param h: Hidden activations.
         :type h: numpy array [num data points, output_dim]
@@ -232,7 +251,7 @@ class BipartiteGraph(object):
         return self._visible_post_activation(self._visible_pre_activation(h))
 
     def _hidden_pre_activation(self, v):
-        """ Computes the Hidden pre-activations from visible activations.
+        """Computes the Hidden pre-activations from visible activations.
 
         :param v: Visible activations.
         :type v: numpy array [num data points, input_dim]
@@ -243,7 +262,7 @@ class BipartiteGraph(object):
         return numx.dot(v - self.ov, self.w) + self.bh
 
     def _hidden_post_activation(self, pre_act_h):
-        """ Computes the Hidden (post) activations from hidden pre-activations.
+        """Computes the Hidden (post) activations from hidden pre-activations.
 
         :param pre_act_h: Hidden pre-activations.
         :type pre_act_h: numpy array [num data points, output_dim]
@@ -254,7 +273,7 @@ class BipartiteGraph(object):
         return self.hidden_activation_function.f(pre_act_h)
 
     def hidden_activation(self, v):
-        """ Computes the Hidden (post) activations from visible activations.
+        """Computes the Hidden (post) activations from visible activations.
 
         :param v: Visible activations.
         :type v: numpy array [num data points, input_dim]
@@ -264,12 +283,14 @@ class BipartiteGraph(object):
         """
         return self._hidden_post_activation(self._hidden_pre_activation(v))
 
-    def _add_hidden_units(self,
-                          num_new_hiddens,
-                          position=0,
-                          initial_weights='AUTO',
-                          initial_bias='AUTO',
-                          initial_offsets='AUTO'):
+    def _add_hidden_units(
+        self,
+        num_new_hiddens,
+        position=0,
+        initial_weights="AUTO",
+        initial_bias="AUTO",
+        initial_offsets="AUTO",
+    ):
         """ This function adds new hidden units at the given position to the model. \
             .. Warning:: If the parameters are changed. the trainer needs to be reinitialized.
 
@@ -294,42 +315,74 @@ class BipartiteGraph(object):
         # Scalar -> Small Gaussian distributed random values with std_dev
         #           initial_weights
         # Array  -> The corresponding values are used
-        if initial_weights is 'AUTO':
-            new_weights = ((2.0 * numx.random.rand(self.input_dim, num_new_hiddens) - 1.0) * (
-                4.0 * numx.sqrt(6.0 / (self.input_dim + self.output_dim + num_new_hiddens))))
+        if initial_weights is "AUTO":
+            new_weights = (
+                2.0 * numx.random.rand(self.input_dim, num_new_hiddens) - 1.0
+            ) * (
+                4.0
+                * numx.sqrt(6.0 / (self.input_dim + self.output_dim + num_new_hiddens))
+            )
         else:
             if numx.isscalar(initial_weights):
-                new_weights = numx.random.randn(self.input_dim, num_new_hiddens) * initial_weights
+                new_weights = (
+                    numx.random.randn(self.input_dim, num_new_hiddens) * initial_weights
+                )
             else:
                 new_weights = initial_weights
-        self.w = numx.array(numx.insert(self.w, numx.array(numx.ones(num_new_hiddens) * position,dtype=int), new_weights, axis=1),self.dtype)
+        self.w = numx.array(
+            numx.insert(
+                self.w,
+                numx.array(numx.ones(num_new_hiddens) * position, dtype=int),
+                new_weights,
+                axis=1,
+            ),
+            self.dtype,
+        )
 
         # AUTO   -> Initialized to Hidden range mean
         # Scalar -> Initialized to given value
         # Array  -> The corresponding values are used
-        if initial_offsets is 'AUTO':
+        if initial_offsets is "AUTO":
             new_oh = numx.zeros((1, num_new_hiddens)) + 0.5
         else:
             if numx.isscalar(initial_offsets):
                 new_oh = numx.zeros((1, num_new_hiddens)) + initial_offsets
             else:
                 new_oh = initial_offsets
-        self.oh = numx.array(numx.insert(self.oh, numx.array(numx.ones(num_new_hiddens) * position,dtype=int), new_oh, axis=1),self.dtype)
+        self.oh = numx.array(
+            numx.insert(
+                self.oh,
+                numx.array(numx.ones(num_new_hiddens) * position, dtype=int),
+                new_oh,
+                axis=1,
+            ),
+            self.dtype,
+        )
 
         # AUTO   -> Initialized to randn()*0.01
         # Scalar -> Initialized to given value + randn()*0.01
         # Array  -> The corresponding values are used
-        if initial_bias is 'AUTO':
+        if initial_bias is "AUTO":
             new_bias = numx.zeros((1, num_new_hiddens))
         else:
-            if initial_bias is 'INVERSE_SIGMOID':
-                new_bias = Sigmoid.g(numx.clip(new_oh, 0.01, 0.99)).reshape(new_oh.shape)
+            if initial_bias is "INVERSE_SIGMOID":
+                new_bias = Sigmoid.g(numx.clip(new_oh, 0.01, 0.99)).reshape(
+                    new_oh.shape
+                )
             else:
                 if numx.isscalar(initial_bias):
                     new_bias = initial_bias + numx.zeros((1, num_new_hiddens))
                 else:
                     new_bias = numx.array(initial_bias, dtype=self.dtype)
-        self.bh = numx.array(numx.insert(self.bh, numx.array(numx.ones(num_new_hiddens) * position,dtype=int), new_bias, axis=1), self.dtype)
+        self.bh = numx.array(
+            numx.insert(
+                self.bh,
+                numx.array(numx.ones(num_new_hiddens) * position, dtype=int),
+                new_bias,
+                axis=1,
+            ),
+            self.dtype,
+        )
 
         self.output_dim = self.w.shape[1]
 
@@ -345,14 +398,16 @@ class BipartiteGraph(object):
         self.oh = numx.delete(self.oh, numx.array(indices), axis=1)
         self.output_dim = self.w.shape[1]
 
-    def _add_visible_units(self,
-                           num_new_visibles,
-                           position=0,
-                           initial_weights='AUTO',
-                           initial_bias='AUTO',
-                           initial_offsets='AUTO',
-                           data=None):
-        """ This function adds new visible units at the given position to the model.
+    def _add_visible_units(
+        self,
+        num_new_visibles,
+        position=0,
+        initial_weights="AUTO",
+        initial_bias="AUTO",
+        initial_offsets="AUTO",
+        data=None,
+    ):
+        """This function adds new visible units at the given position to the model.
             .. Warning:: If the parameters are changed. the trainer needs to be reinitialized.
 
         :param num_new_visibles: The number of new hidden units to add
@@ -380,28 +435,60 @@ class BipartiteGraph(object):
                 data = numx.concatenate(data)
             new_data_mean = data.mean(axis=0).reshape(1, num_new_visibles)
             new_data_std = data.std(axis=0).reshape(1, num_new_visibles)
-        self._data_mean = numx.array(numx.insert(self._data_mean, numx.array(numx.ones(num_new_visibles)* position, dtype=int),
-                                                 new_data_mean, axis=1), self.dtype)
-        self._data_std = numx.array(numx.insert(self._data_std, numx.array(numx.ones(num_new_visibles) * position, dtype=int),
-                                                new_data_std, axis=1), self.dtype)
+        self._data_mean = numx.array(
+            numx.insert(
+                self._data_mean,
+                numx.array(numx.ones(num_new_visibles) * position, dtype=int),
+                new_data_mean,
+                axis=1,
+            ),
+            self.dtype,
+        )
+        self._data_std = numx.array(
+            numx.insert(
+                self._data_std,
+                numx.array(numx.ones(num_new_visibles) * position, dtype=int),
+                new_data_std,
+                axis=1,
+            ),
+            self.dtype,
+        )
 
         # AUTO   -> Small random values out of
         #           +-4*numx.sqrt(6/(self.input_dim+self.output_dim)
         # Scalar -> Small Gaussian distributed random values with std_dev
         #           initial_weights
         # Array  -> The corresponding values are used
-        if initial_weights is 'AUTO':
-            new_weights = numx.array((2.0 * numx.random.rand(num_new_visibles, self.output_dim) - 1.0) * (
-                4.0 * numx.sqrt(6.0 / (self.input_dim + self.output_dim + num_new_visibles))), dtype=self.dtype)
+        if initial_weights is "AUTO":
+            new_weights = numx.array(
+                (2.0 * numx.random.rand(num_new_visibles, self.output_dim) - 1.0)
+                * (
+                    4.0
+                    * numx.sqrt(
+                        6.0 / (self.input_dim + self.output_dim + num_new_visibles)
+                    )
+                ),
+                dtype=self.dtype,
+            )
         else:
             if numx.isscalar(initial_weights):
-                new_weights = numx.random.randn(num_new_visibles, self.output_dim) * initial_weights
+                new_weights = (
+                    numx.random.randn(num_new_visibles, self.output_dim)
+                    * initial_weights
+                )
             else:
                 new_weights = initial_weights
-        self.w = numx.array(numx.insert(self.w, numx.array(numx.ones(num_new_visibles) * position,dtype = int), new_weights, axis=0),
-                            self.dtype)
+        self.w = numx.array(
+            numx.insert(
+                self.w,
+                numx.array(numx.ones(num_new_visibles) * position, dtype=int),
+                new_weights,
+                axis=0,
+            ),
+            self.dtype,
+        )
 
-        if initial_offsets is 'AUTO':
+        if initial_offsets is "AUTO":
             if data is not None:
                 new_ov = new_data_mean
             else:
@@ -411,14 +498,22 @@ class BipartiteGraph(object):
                 new_ov = numx.zeros((1, num_new_visibles)) + initial_offsets
             else:
                 new_ov = initial_offsets
-        self.ov = numx.array(numx.insert(self.ov, numx.array(numx.ones(num_new_visibles) * position,dtype = int), new_ov, axis=1), self.dtype)
+        self.ov = numx.array(
+            numx.insert(
+                self.ov,
+                numx.array(numx.ones(num_new_visibles) * position, dtype=int),
+                new_ov,
+                axis=1,
+            ),
+            self.dtype,
+        )
 
         # AUTO   -> data != None -> Initialized to the inverse sigmoid of
         #           data mean
         #           data == Initialized to randn()*0.01
         # Scalar -> Initialized to given value + randn()*0.01
         # Array  -> The corresponding values are used
-        if initial_bias is 'AUTO':
+        if initial_bias is "AUTO":
             if data is not None:
                 new_bias = numx.zeros((1, num_new_visibles))
             else:
@@ -428,11 +523,19 @@ class BipartiteGraph(object):
                 new_bias = numx.zeros((1, num_new_visibles)) + initial_bias
             else:
                 new_bias = initial_bias
-        self.bv = numx.array(numx.insert(self.bv, numx.array(numx.ones(num_new_visibles) * position,dtype = int), new_bias, axis=1), self.dtype)
+        self.bv = numx.array(
+            numx.insert(
+                self.bv,
+                numx.array(numx.ones(num_new_visibles) * position, dtype=int),
+                new_bias,
+                axis=1,
+            ),
+            self.dtype,
+        )
         self.input_dim = self.w.shape[0]
 
     def _remove_visible_units(self, indices):
-        """ This function removes the visible units whose indices are given.
+        """This function removes the visible units whose indices are given.
             .. Warning:: If the parameters are changed. the trainer needs to be reinitialized.
 
         :param indices: Indices of units to be remove.
@@ -446,7 +549,7 @@ class BipartiteGraph(object):
         self.input_dim = self.w.shape[0]
 
     def get_parameters(self):
-        """ This function returns all model parameters in a list.
+        """This function returns all model parameters in a list.
 
         :return: The parameter references in a list.
         :rtype:  list
@@ -454,7 +557,7 @@ class BipartiteGraph(object):
         return [self.w, self.bv, self.bh]
 
     def update_parameters(self, updates):
-        """ This function updates all parameters given the updates derived by the training methods.
+        """This function updates all parameters given the updates derived by the training methods.
 
         :param updates: Parameter gradients.
         :type updates: list of numpy arrays (num para. x [para.shape])
@@ -464,12 +567,14 @@ class BipartiteGraph(object):
             p += updates[i]
             i += 1
 
-    def update_offsets(self,
-                       new_visible_offsets=0.0,
-                       new_hidden_offsets=0.0,
-                       update_visible_offsets=1.0,
-                       update_hidden_offsets=1.0):
-        """ | This function updates the visible and hidden offsets.
+    def update_offsets(
+        self,
+        new_visible_offsets=0.0,
+        new_hidden_offsets=0.0,
+        update_visible_offsets=1.0,
+        update_hidden_offsets=1.0,
+    ):
+        """| This function updates the visible and hidden offsets.
             | --> update_offsets(0,0,1,1) reparameterizes to the normal binary RBM.
 
         :param new_visible_offsets: New visible means.
@@ -486,20 +591,27 @@ class BipartiteGraph(object):
         """
         # update the centers
         if update_hidden_offsets != 0.0:
-            self.bv += (update_hidden_offsets * numx.dot(new_hidden_offsets - self.oh, self.w.T))
-            self.oh = ((1.0 - update_hidden_offsets) * self.oh + update_hidden_offsets * new_hidden_offsets)
+            self.bv += update_hidden_offsets * numx.dot(
+                new_hidden_offsets - self.oh, self.w.T
+            )
+            self.oh = (
+                1.0 - update_hidden_offsets
+            ) * self.oh + update_hidden_offsets * new_hidden_offsets
         # update the centers
         if update_visible_offsets != 0.0:
-            self.bh += (update_visible_offsets * numx.dot(new_visible_offsets - self.ov, self.w))
-            self.ov = ((1.0 - update_visible_offsets) * self.ov + update_visible_offsets * new_visible_offsets)
+            self.bh += update_visible_offsets * numx.dot(
+                new_visible_offsets - self.ov, self.w
+            )
+            self.ov = (
+                1.0 - update_visible_offsets
+            ) * self.ov + update_visible_offsets * new_visible_offsets
 
 
 class StackOfBipartiteGraphs(object):
-    """ Stacked network layers
-    """
+    """Stacked network layers"""
 
     def __init__(self, list_of_layers):
-        """ Initializes the network with auto encoders.
+        """Initializes the network with auto encoders.
 
         :param list_of_layers: List of Layers i.e. BipartiteGraph.
         :type list_of_layers: list
@@ -515,28 +627,29 @@ class StackOfBipartiteGraphs(object):
             self.output_dim = self._layers[len(self._layers) - 1].output_dim
 
     def _check_network(self):
-        """ Check whether the network is consistent and raise an exception if it is not the case.
-
-        """
+        """Check whether the network is consistent and raise an exception if it is not the case."""
         for i in range(1, len(self._layers)):
             if self._layers[i - 1].output_dim != self._layers[i].input_dim:
                 raise Exception(
-                    "Output_dim of layer " + str(i - 1) + " has to match input_dim of layer " + str(i) + "!")
+                    "Output_dim of layer "
+                    + str(i - 1)
+                    + " has to match input_dim of layer "
+                    + str(i)
+                    + "!"
+                )
 
     @property
     def depth(self):
-        """ Networks depth/ number of layers.
-        """
+        """Networks depth/ number of layers."""
         return len(self.states)
 
     @property
     def num_layers(self):
-        """ Networks depth/ number of layers.
-        """
+        """Networks depth/ number of layers."""
         return len(self._layers)
 
     def __getitem__(self, key):
-        """ Indexing returns the layers current state.
+        """Indexing returns the layers current state.
 
         :param key: Index of the layer.
         :type key: int
@@ -547,7 +660,7 @@ class StackOfBipartiteGraphs(object):
         return self._layers[key]
 
     def __setitem__(self, key, value):
-        """ Sets the state of the current layers state.
+        """Sets the state of the current layers state.
 
         :param key: Index of the layer.
         :type key: int
@@ -555,13 +668,16 @@ class StackOfBipartiteGraphs(object):
         :param value: State of the layer with index 'key'.
         :type value: numpy array [batchsize x output dim of current layer]
         """
-        if value.input_dim == self._layers[key].input_dim and value.output_dim == self._layers[key].output_dim:
+        if (
+            value.input_dim == self._layers[key].input_dim
+            and value.output_dim == self._layers[key].output_dim
+        ):
             self._layers[key] = value
         else:
             raise Exception("New model have wrong dimensionality!")
 
     def append_layer(self, layer):
-        """ Appends the model to the network.
+        """Appends the model to the network.
 
         :param layer: Layer object.
         :type layer: Layer object i.e. BipartiteGraph.
@@ -572,9 +688,7 @@ class StackOfBipartiteGraphs(object):
         self._check_network()
 
     def pop_last_layer(self):
-        """ Removes/pops the last layer in the network.
-
-        """
+        """Removes/pops the last layer in the network."""
         if len(self._layers) > 0:
             self._layers.pop(len(self._layers) - 1)
             self.states.pop(len(self.states) - 1)
@@ -587,7 +701,7 @@ class StackOfBipartiteGraphs(object):
         self._check_network()
 
     def save(self, path, save_states=False):
-        """ Saves the network.
+        """Saves the network.
 
         :param path: Filename+path.
         :type path: string.
@@ -601,7 +715,7 @@ class StackOfBipartiteGraphs(object):
         save_object(self, path)
 
     def forward_propagate(self, input_data):
-        """ Propagates the data through the network.
+        """Propagates the data through the network.
 
         :param input_data: Input data.
         :type input_data: numpy array [batchsize x input dim]
@@ -617,7 +731,7 @@ class StackOfBipartiteGraphs(object):
         return self.states[len(self._layers)]
 
     def backward_propagate(self, output_data):
-        """ Propagates the output back through the input.
+        """Propagates the output back through the input.
 
         :param output_data: Output data.
         :type output_data: numpy array [batchsize x output dim]
@@ -633,7 +747,7 @@ class StackOfBipartiteGraphs(object):
         return self.states[0]
 
     def reconstruct(self, input_data):
-        """ Reconstructs the data by propagating the data to the output and back to the input.
+        """Reconstructs the data by propagating the data to the output and back to the input.
 
         :param input_data: Input data.
         :type input_data: numpy array [batchsize x input dim]

@@ -1,55 +1,55 @@
-""" Different kind of cost functions and their derivatives.
-    
-    :Implemented:
-        - Squared error
-        - Absolute error
-        - Cross entropy
-        - Negative Log-likelihood
-      
-    :Version:
-        1.1.0
+"""Different kind of cost functions and their derivatives.
 
-    :Date:
-        13.03.2017
+:Implemented:
+    - Squared error
+    - Absolute error
+    - Cross entropy
+    - Negative Log-likelihood
 
-    :Author:
-        Jan Melchior
+:Version:
+    1.1.0
 
-    :Contact:
-        JanMelchior@gmx.de
+:Date:
+    13.03.2017
 
-    :License:
+:Author:
+    Jan Melchior
 
-        Copyright (C) 2017 Jan Melchior
+:Contact:
+    JanMelchior@gmx.de
 
-        This file is part of the Python library PyDeep.
+:License:
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    Copyright (C) 2017 Jan Melchior
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This file is part of the Python library PyDeep.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
 import numpy as numx
 
 MIN_VALUE = 1e-10
 
 
 class SquaredError(object):
-    """ Mean Squared error.
-    """
+    """Mean Squared error."""
 
     @classmethod
     def f(cls, x, t):
-        """ Calculates the Squared Error value for a given input x and target t.
+        """Calculates the Squared Error value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array
@@ -64,7 +64,7 @@ class SquaredError(object):
 
     @classmethod
     def df(cls, x, t):
-        """ Calculates the derivative of the Squared Error value for a given input x and target t.
+        """Calculates the derivative of the Squared Error value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array
@@ -79,12 +79,11 @@ class SquaredError(object):
 
 
 class AbsoluteError(object):
-    """ Absolute error.
-    """
+    """Absolute error."""
 
     @classmethod
     def f(cls, x, t):
-        """ Calculates the absolute error value for a given input x and target t.
+        """Calculates the absolute error value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array
@@ -99,7 +98,7 @@ class AbsoluteError(object):
 
     @classmethod
     def df(cls, x, t):
-        """ Calculates the derivative of the absolute error value for a given input x and target t.
+        """Calculates the derivative of the absolute error value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array
@@ -114,12 +113,11 @@ class AbsoluteError(object):
 
 
 class CrossEntropyError(object):
-    """ Cross entropy functions.
-    """
+    """Cross entropy functions."""
 
     @classmethod
     def f(cls, x, t):
-        """ Calculates the cross entropy value for a given input x and target t.
+        """Calculates the cross entropy value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array
@@ -135,7 +133,7 @@ class CrossEntropyError(object):
 
     @classmethod
     def df(cls, x, t):
-        """ Calculates the derivative of the cross entropy value for a given input x and target t.
+        """Calculates the derivative of the cross entropy value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array
@@ -151,12 +149,11 @@ class CrossEntropyError(object):
 
 
 class NegLogLikelihood(object):
-    """ Negative log likelihood function.
-    """
+    """Negative log likelihood function."""
 
     @classmethod
     def f(cls, x, t):
-        """ Calculates the negative log-likelihood value for a given input x and target t.
+        """Calculates the negative log-likelihood value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array
@@ -171,7 +168,7 @@ class NegLogLikelihood(object):
 
     @classmethod
     def df(cls, x, t):
-        """ Calculates the derivative of the negative log-likelihood value for a given input x and target t.
+        """Calculates the derivative of the negative log-likelihood value for a given input x and target t.
 
         :param x: Input data.
         :type x: scalar or numpy array

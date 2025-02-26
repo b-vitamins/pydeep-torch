@@ -1,51 +1,52 @@
-""" This module provides different types of training algorithms for RBMs
-    running on CPU. The structure is kept modular to simplify the
-    understanding of the code and the mathematics. In addition the modularity
-    helps to create other kind of training algorithms by inheritance.
+"""This module provides different types of training algorithms for RBMs
+running on CPU. The structure is kept modular to simplify the
+understanding of the code and the mathematics. In addition the modularity
+helps to create other kind of training algorithms by inheritance.
 
-    :Implemented:
-        - CD   (Contrastive Divergence)
-        - PCD  (Persistent Contrastive Divergence)
-        - PT   (Parallel Tempering)
-        - IPT  (Independent Parallel Tempering)
-        - GD   (Exact Gradient descent (only for small binary models))
+:Implemented:
+    - CD   (Contrastive Divergence)
+    - PCD  (Persistent Contrastive Divergence)
+    - PT   (Parallel Tempering)
+    - IPT  (Independent Parallel Tempering)
+    - GD   (Exact Gradient descent (only for small binary models))
 
-    :Info:
-        For the derivations .. seealso::
-        https://www.ini.rub.de/PEOPLE/wiskott/Reprints/Melchior-2012-MasterThesis-RBMs.pdf
+:Info:
+    For the derivations .. seealso::
+    https://www.ini.rub.de/PEOPLE/wiskott/Reprints/Melchior-2012-MasterThesis-RBMs.pdf
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        04.04.2017
+:Date:
+    04.04.2017
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
 import pydeep.rbm.sampler as sampler
 import pydeep.rbm.model as models
 import pydeep.rbm.estimator as estimator
@@ -54,21 +55,18 @@ import numpy as numx
 
 
 class CD(object):
-    """ Implementation of the training algorithm Contrastive Divergence (CD).
+    """Implementation of the training algorithm Contrastive Divergence (CD).
 
-        :INFO:
-            A fast learning algorithm for deep belief nets, Geoffrey E. Hinton
-            and Simon Osindero Yee-Whye Teh Department of Computer Science
-            University of Toronto Yee-Whye Teh 10 Kings College Road National
-            University of Singapore.
+    :INFO:
+        A fast learning algorithm for deep belief nets, Geoffrey E. Hinton
+        and Simon Osindero Yee-Whye Teh Department of Computer Science
+        University of Toronto Yee-Whye Teh 10 Kings College Road National
+        University of Singapore.
 
     """
 
     @classmethod
-    def _calculate_centered_gradient(cls,
-                                     gradients,
-                                     visible_offsets,
-                                     hidden_offsets):
+    def _calculate_centered_gradient(cls, gradients, visible_offsets, hidden_offsets):
         """ Calculates the centered gradient from the normal CD gradient for the parameters W, bv, bh and the \
             corresponding offset values.
 
@@ -84,14 +82,16 @@ class CD(object):
         :return: Enhanced gradients for all parameters.
         :rtype: numpy arrays (num parameters x [parameter.shape])
         """
-        gradients[0] -= numx.dot(gradients[1].T, hidden_offsets) + numx.dot(visible_offsets.T, gradients[2])
+        gradients[0] -= numx.dot(gradients[1].T, hidden_offsets) + numx.dot(
+            visible_offsets.T, gradients[2]
+        )
         gradients[1] -= numx.dot(hidden_offsets, gradients[0].T)
         gradients[2] -= numx.dot(visible_offsets, gradients[0])
 
         return gradients
 
     def __init__(self, model, data=None):
-        """ The constructor initializes the CD trainer with a given model and data.
+        """The constructor initializes the CD trainer with a given model and data.
 
         :param model: The model to sample from.
         :type model: Valid model class.
@@ -112,34 +112,39 @@ class CD(object):
         self.hidden_offsets = 0.5 * numx.ones((1, self.model.output_dim))
         if data is not None:
             if self.model.input_dim != data.shape[1]:
-                raise ValueError("Data dimension and model input dimension have to be equal!")
+                raise ValueError(
+                    "Data dimension and model input dimension have to be equal!"
+                )
             self.visible_offsets = data.mean(axis=0).reshape(1, data.shape[1])
         else:
             self.visible_offsets = 0.5 * numx.ones((1, self.model.input_dim))
         # Storage variables for the gradients
         self.parameter_updates = []
         for i in range(self.num_parameters):
-            self.parameter_updates.append(numx.zeros((
-                parameters[i].shape[0],
-                parameters[i].shape[1]),
-                dtype=model.dtype))
+            self.parameter_updates.append(
+                numx.zeros(
+                    (parameters[i].shape[0], parameters[i].shape[1]), dtype=model.dtype
+                )
+            )
 
-    def _adapt_gradient(self,
-                        pos_gradients,
-                        neg_gradients,
-                        batch_size,
-                        epsilon,
-                        momentum,
-                        reg_l1norm,
-                        reg_l2norm,
-                        reg_sparseness,
-                        desired_sparseness,
-                        mean_hidden_activity,
-                        visible_offsets,
-                        hidden_offsets,
-                        use_centered_gradient,
-                        restrict_gradient,
-                        restriction_norm):
+    def _adapt_gradient(
+        self,
+        pos_gradients,
+        neg_gradients,
+        batch_size,
+        epsilon,
+        momentum,
+        reg_l1norm,
+        reg_l2norm,
+        reg_sparseness,
+        desired_sparseness,
+        mean_hidden_activity,
+        visible_offsets,
+        hidden_offsets,
+        use_centered_gradient,
+        restrict_gradient,
+        restriction_norm,
+    ):
         """ This function updates the parameter gradients.
 
         :param pos_gradients: Positive Gradients.
@@ -195,7 +200,9 @@ class CD(object):
 
         # adapt to centered gradient
         if use_centered_gradient:
-            gradients = self._calculate_centered_gradient(gradients, visible_offsets, hidden_offsets)
+            gradients = self._calculate_centered_gradient(
+                gradients, visible_offsets, hidden_offsets
+            )
 
         # adapt parameters
         for i in range(self.num_parameters):
@@ -205,45 +212,58 @@ class CD(object):
         # Add sparse penalty
         if reg_sparseness != 0:
             if desired_sparseness is not None:
-                self.parameter_updates[2] += (epsilon[2] * reg_sparseness * (desired_sparseness - mean_hidden_activity))
+                self.parameter_updates[2] += (
+                    epsilon[2]
+                    * reg_sparseness
+                    * (desired_sparseness - mean_hidden_activity)
+                )
                 # st = numx.clip(mean_hidden_activity,0.001,0.999)
                 # st = -desired_sparseness/st+(1.0-desired_sparseness)/(1.0-st)
                 # self.parameter_updates[2] -= epsilon[2] * reg_sparseness * st
 
         # add weight decay
         if reg_l1norm != 0:
-            self.parameter_updates[0] -= (epsilon[0] * reg_l1norm * numx.sign(self.model.w))
+            self.parameter_updates[0] -= (
+                epsilon[0] * reg_l1norm * numx.sign(self.model.w)
+            )
 
         if reg_l2norm != 0:
-            self.parameter_updates[0] -= (epsilon[0] * reg_l2norm * self.model.w)
+            self.parameter_updates[0] -= epsilon[0] * reg_l2norm * self.model.w
 
         # Restricts the gradient
         if numx.isscalar(restrict_gradient):
             if restrict_gradient > 0:
-                if restriction_norm is 'Cols':
-                    self.parameter_updates[0] = numxext.restrict_norms(self.parameter_updates[0], restrict_gradient, 0)
-                if restriction_norm is 'Rows':
-                    self.parameter_updates[0] = numxext.restrict_norms(self.parameter_updates[0], restrict_gradient, 1)
-                if restriction_norm is 'Mat':
-                    self.parameter_updates[0] = numxext.restrict_norms(self.parameter_updates[0], restrict_gradient,
-                                                                       None)
+                if restriction_norm is "Cols":
+                    self.parameter_updates[0] = numxext.restrict_norms(
+                        self.parameter_updates[0], restrict_gradient, 0
+                    )
+                if restriction_norm is "Rows":
+                    self.parameter_updates[0] = numxext.restrict_norms(
+                        self.parameter_updates[0], restrict_gradient, 1
+                    )
+                if restriction_norm is "Mat":
+                    self.parameter_updates[0] = numxext.restrict_norms(
+                        self.parameter_updates[0], restrict_gradient, None
+                    )
 
-    def _train(self,
-               data,
-               epsilon,
-               k,
-               momentum,
-               reg_l1norm,
-               reg_l2norm,
-               reg_sparseness,
-               desired_sparseness,
-               update_visible_offsets,
-               update_hidden_offsets,
-               offset_typ,
-               use_centered_gradient,
-               restrict_gradient,
-               restriction_norm,
-               use_hidden_states):
+    def _train(
+        self,
+        data,
+        epsilon,
+        k,
+        momentum,
+        reg_l1norm,
+        reg_l2norm,
+        reg_sparseness,
+        desired_sparseness,
+        update_visible_offsets,
+        update_hidden_offsets,
+        offset_typ,
+        use_centered_gradient,
+        restrict_gradient,
+        restriction_norm,
+        use_hidden_states,
+    ):
         """ The training for one batch is performed using Contrastive Divergence (CD) for k sampling steps.
 
         :param data: The data used for training.
@@ -305,9 +325,13 @@ class CD(object):
         hmean_pos = 0.0
         if update_hidden_offsets != 0.0 or reg_sparseness != 0.0:
             if use_hidden_states:
-                hmean_pos = numx.mean(hid_states_pos, axis=0).reshape(1, self.model.output_dim)
+                hmean_pos = numx.mean(hid_states_pos, axis=0).reshape(
+                    1, self.model.output_dim
+                )
             else:
-                hmean_pos = numx.mean(hid_probs_pos, axis=0).reshape(1, self.model.output_dim)
+                hmean_pos = numx.mean(hid_probs_pos, axis=0).reshape(
+                    1, self.model.output_dim
+                )
 
         # Perform k steps of Gibbs sampling
         if isinstance(self.sampler, sampler.GibbsSampler):
@@ -320,94 +344,111 @@ class CD(object):
             hid_states_neg = self.model.sample_h(hid_probs_neg)
 
         if update_visible_offsets != 0.0:
-            xmean_neg = numx.mean(vis_states_neg, axis=0
-                                  ).reshape(1, self.model.input_dim)
+            xmean_neg = numx.mean(vis_states_neg, axis=0).reshape(
+                1, self.model.input_dim
+            )
         hmean_neg = 0.0
         if update_hidden_offsets != 0.0:
             if use_hidden_states:
-                hmean_neg = numx.mean(hid_states_neg, axis=0).reshape(1, self.model.output_dim)
+                hmean_neg = numx.mean(hid_states_neg, axis=0).reshape(
+                    1, self.model.output_dim
+                )
             else:
-                hmean_neg = numx.mean(hid_probs_neg, axis=0).reshape(1, self.model.output_dim)
+                hmean_neg = numx.mean(hid_probs_neg, axis=0).reshape(
+                    1, self.model.output_dim
+                )
         new_visible_offsets = 0.0
         if update_visible_offsets != 0.0:
-            if offset_typ[0] is 'A':
+            if offset_typ[0] is "A":
                 new_visible_offsets = (xmean_pos + xmean_neg) * 0.5
-            if offset_typ[0] is 'D':
+            if offset_typ[0] is "D":
                 new_visible_offsets = xmean_pos
-            if offset_typ[0] is 'M':
+            if offset_typ[0] is "M":
                 new_visible_offsets = xmean_neg
-            if offset_typ[0] is '0':
+            if offset_typ[0] is "0":
                 new_visible_offsets = 0.0 * xmean_pos
         new_hidden_offsets = 0.0
         if update_hidden_offsets != 0.0:
-            if offset_typ[1] is 'A':
+            if offset_typ[1] is "A":
                 new_hidden_offsets = (hmean_pos + hmean_neg) * 0.5
-            if offset_typ[1] is 'D':
+            if offset_typ[1] is "D":
                 new_hidden_offsets = hmean_pos
-            if offset_typ[1] is 'M':
+            if offset_typ[1] is "M":
                 new_hidden_offsets = hmean_neg
-            if offset_typ[1] is '0':
+            if offset_typ[1] is "0":
                 new_hidden_offsets = 0.0 * hmean_pos
 
         if use_centered_gradient is False:
             # update the centers
-            self.model.update_offsets(new_visible_offsets,
-                                      new_hidden_offsets,
-                                      update_visible_offsets,
-                                      update_hidden_offsets)
+            self.model.update_offsets(
+                new_visible_offsets,
+                new_hidden_offsets,
+                update_visible_offsets,
+                update_hidden_offsets,
+            )
             self.visible_offsets = 0.0
             self.hidden_offsets = 0.0
         else:
-            self.hidden_offsets = ((1.0 - update_hidden_offsets) * self.hidden_offsets + update_hidden_offsets
-                                   * new_hidden_offsets)
-            self.visible_offsets = ((1.0 - update_visible_offsets) * self.visible_offsets + update_visible_offsets
-                                    * new_visible_offsets)
+            self.hidden_offsets = (
+                1.0 - update_hidden_offsets
+            ) * self.hidden_offsets + update_hidden_offsets * new_hidden_offsets
+            self.visible_offsets = (
+                1.0 - update_visible_offsets
+            ) * self.visible_offsets + update_visible_offsets * new_visible_offsets
 
         # Calculate positive phase gradient using states or probabilities
         if use_hidden_states:
             pos_gradients = self.model.calculate_gradients(data, hid_states_pos)
-            neg_gradients = self.model.calculate_gradients(vis_states_neg, hid_states_neg)
+            neg_gradients = self.model.calculate_gradients(
+                vis_states_neg, hid_states_neg
+            )
         else:
             pos_gradients = self.model.calculate_gradients(data, hid_probs_pos)
-            neg_gradients = self.model.calculate_gradients(vis_states_neg, hid_probs_neg)
+            neg_gradients = self.model.calculate_gradients(
+                vis_states_neg, hid_probs_neg
+            )
 
         # Adapt the gradients by weight decay momentum and learning rate
-        self._adapt_gradient(pos_gradients=pos_gradients,
-                             neg_gradients=neg_gradients,
-                             batch_size=data.shape[0],
-                             epsilon=epsilon,
-                             momentum=momentum,
-                             reg_l1norm=reg_l1norm,
-                             reg_l2norm=reg_l2norm,
-                             reg_sparseness=reg_sparseness,
-                             desired_sparseness=desired_sparseness,
-                             mean_hidden_activity=hmean_pos,
-                             visible_offsets=self.visible_offsets,
-                             hidden_offsets=self.hidden_offsets,
-                             use_centered_gradient=use_centered_gradient,
-                             restrict_gradient=restrict_gradient,
-                             restriction_norm=restriction_norm)
+        self._adapt_gradient(
+            pos_gradients=pos_gradients,
+            neg_gradients=neg_gradients,
+            batch_size=data.shape[0],
+            epsilon=epsilon,
+            momentum=momentum,
+            reg_l1norm=reg_l1norm,
+            reg_l2norm=reg_l2norm,
+            reg_sparseness=reg_sparseness,
+            desired_sparseness=desired_sparseness,
+            mean_hidden_activity=hmean_pos,
+            visible_offsets=self.visible_offsets,
+            hidden_offsets=self.hidden_offsets,
+            use_centered_gradient=use_centered_gradient,
+            restrict_gradient=restrict_gradient,
+            restriction_norm=restriction_norm,
+        )
 
         # update the parameters with the calculated gradient
         self.model.update_parameters(self.parameter_updates)
 
-    def train(self,
-              data,
-              num_epochs=1,
-              epsilon=0.01,
-              k=1,
-              momentum=0.0,
-              reg_l1norm=0.0,
-              reg_l2norm=0.0,
-              reg_sparseness=0.0,
-              desired_sparseness=None,
-              update_visible_offsets=0.01,
-              update_hidden_offsets=0.01,
-              offset_typ='DD',
-              use_centered_gradient=False,
-              restrict_gradient=False,
-              restriction_norm='Mat',
-              use_hidden_states=False):
+    def train(
+        self,
+        data,
+        num_epochs=1,
+        epsilon=0.01,
+        k=1,
+        momentum=0.0,
+        reg_l1norm=0.0,
+        reg_l2norm=0.0,
+        reg_sparseness=0.0,
+        desired_sparseness=None,
+        update_visible_offsets=0.01,
+        update_hidden_offsets=0.01,
+        offset_typ="DD",
+        use_centered_gradient=False,
+        restrict_gradient=False,
+        restriction_norm="Mat",
+        use_hidden_states=False,
+    ):
         """ Train the models with all batches using Contrastive Divergence (CD) for k sampling steps.
 
         :param data: The data used for training.
@@ -475,54 +516,55 @@ class CD(object):
             for _ in range(num_epochs):
                 # gradient update for all batches
                 for batch in data:
-                    self._train(data=batch,
-                                epsilon=epsilon,
-                                k=k,
-                                momentum=momentum,
-                                reg_l1norm=reg_l1norm,
-                                reg_l2norm=reg_l2norm,
-                                reg_sparseness=reg_sparseness,
-                                desired_sparseness=desired_sparseness,
-                                update_visible_offsets=update_visible_offsets,
-                                update_hidden_offsets=update_hidden_offsets,
-                                offset_typ=offset_typ,
-                                use_centered_gradient=use_centered_gradient,
-                                restrict_gradient=restrict_gradient,
-                                restriction_norm=restriction_norm,
-                                use_hidden_states=use_hidden_states)
+                    self._train(
+                        data=batch,
+                        epsilon=epsilon,
+                        k=k,
+                        momentum=momentum,
+                        reg_l1norm=reg_l1norm,
+                        reg_l2norm=reg_l2norm,
+                        reg_sparseness=reg_sparseness,
+                        desired_sparseness=desired_sparseness,
+                        update_visible_offsets=update_visible_offsets,
+                        update_hidden_offsets=update_hidden_offsets,
+                        offset_typ=offset_typ,
+                        use_centered_gradient=use_centered_gradient,
+                        restrict_gradient=restrict_gradient,
+                        restriction_norm=restriction_norm,
+                        use_hidden_states=use_hidden_states,
+                    )
         else:
             for _ in range(num_epochs):
-                self._train(data=data,
-                            epsilon=epsilon,
-                            k=k,
-                            momentum=momentum,
-                            reg_l1norm=reg_l1norm,
-                            reg_l2norm=reg_l2norm,
-                            reg_sparseness=reg_sparseness,
-                            desired_sparseness=desired_sparseness,
-                            update_visible_offsets=update_visible_offsets,
-                            update_hidden_offsets=update_hidden_offsets,
-                            offset_typ=offset_typ,
-                            use_centered_gradient=use_centered_gradient,
-                            restrict_gradient=restrict_gradient,
-                            restriction_norm=restriction_norm,
-                            use_hidden_states=use_hidden_states)
+                self._train(
+                    data=data,
+                    epsilon=epsilon,
+                    k=k,
+                    momentum=momentum,
+                    reg_l1norm=reg_l1norm,
+                    reg_l2norm=reg_l2norm,
+                    reg_sparseness=reg_sparseness,
+                    desired_sparseness=desired_sparseness,
+                    update_visible_offsets=update_visible_offsets,
+                    update_hidden_offsets=update_hidden_offsets,
+                    offset_typ=offset_typ,
+                    use_centered_gradient=use_centered_gradient,
+                    restrict_gradient=restrict_gradient,
+                    restriction_norm=restriction_norm,
+                    use_hidden_states=use_hidden_states,
+                )
 
 
 class PCD(CD):
-    """ Implementation of the training algorithm Persistent Contrastive Divergence (PCD).
+    """Implementation of the training algorithm Persistent Contrastive Divergence (PCD).
 
-        :Reference: | Training Restricted Boltzmann Machines using Approximations to the
-                    | Likelihood Gradient, Tijmen Tieleman, Department of Computer
-                    | Science, University of Toronto, Toronto, Ontario M5S 3G4, Canada
+    :Reference: | Training Restricted Boltzmann Machines using Approximations to the
+                | Likelihood Gradient, Tijmen Tieleman, Department of Computer
+                | Science, University of Toronto, Toronto, Ontario M5S 3G4, Canada
 
     """
 
-    def __init__(self,
-                 model,
-                 num_chains,
-                 data=None):
-        """ The constructor initializes the PCD trainer with a given model and data.
+    def __init__(self, model, num_chains, data=None):
+        """The constructor initializes the PCD trainer with a given model and data.
 
         :param model: The model to sample from.
         :type model: Valid model class.
@@ -540,18 +582,15 @@ class PCD(CD):
 
 
 class PT(CD):
-    """ Implementation of the training algorithm Parallel Tempering Contrastive Divergence (PT).
+    """Implementation of the training algorithm Parallel Tempering Contrastive Divergence (PT).
 
-        :Reference: | Parallel Tempering for Training of Restricted Boltzmann Machines,
-                    | Guillaume Desjardins, Aaron Courville, Yoshua Bengio, Pascal
-                    | Vincent, Olivier Delalleau, Dept. IRO, Universite de Montreal P.O.
-                    | Box 6128, Succ. Centre-Ville, Montreal, H3C 3J7, Qc, Canada.
+    :Reference: | Parallel Tempering for Training of Restricted Boltzmann Machines,
+                | Guillaume Desjardins, Aaron Courville, Yoshua Bengio, Pascal
+                | Vincent, Olivier Delalleau, Dept. IRO, Universite de Montreal P.O.
+                | Box 6128, Succ. Centre-Ville, Montreal, H3C 3J7, Qc, Canada.
     """
 
-    def __init__(self,
-                 model,
-                 betas=3,
-                 data=None):
+    def __init__(self, model, betas=3, data=None):
         """ The constructor initializes the IPT trainer with a given model anddata.
 
         :param model: The model to sample from.
@@ -569,7 +608,9 @@ class PT(CD):
         if numx.isscalar(betas):
             self.sampler = sampler.ParallelTemperingSampler(model, betas, None)
         else:
-            self.sampler = sampler.ParallelTemperingSampler(model, betas.shape[0], betas)
+            self.sampler = sampler.ParallelTemperingSampler(
+                model, betas.shape[0], betas
+            )
 
 
 class IPT(CD):
@@ -584,11 +625,7 @@ class IPT(CD):
 
     """
 
-    def __init__(self,
-                 model,
-                 num_samples,
-                 betas=3,
-                 data=None):
+    def __init__(self, model, num_samples, betas=3, data=None):
         """ The constructor initializes the IPT trainer with a given model and
             data.
 
@@ -609,9 +646,13 @@ class IPT(CD):
         super(IPT, self).__init__(model, data)
 
         if numx.isscalar(betas):
-            self.sampler = sampler.IndependentParallelTemperingSampler(model, num_samples, betas, None)
+            self.sampler = sampler.IndependentParallelTemperingSampler(
+                model, num_samples, betas, None
+            )
         else:
-            self.sampler = sampler.IndependentParallelTemperingSampler(model, num_samples, betas.shape[0], betas)
+            self.sampler = sampler.IndependentParallelTemperingSampler(
+                model, num_samples, betas.shape[0], betas
+            )
 
 
 class GD(CD):
@@ -620,10 +661,8 @@ class GD(CD):
 
     """
 
-    def __init__(self,
-                 model,
-                 data=None):
-        """ The constructor initializes the Gradient trainer with a given model.
+    def __init__(self, model, data=None):
+        """The constructor initializes the Gradient trainer with a given model.
 
         :param model: The model to sample from.
         :type model: Valid model class.
@@ -637,22 +676,24 @@ class GD(CD):
         # Call super constructor of CD
         super(GD, self).__init__(model, data)
 
-    def _train(self,
-               data,
-               epsilon,
-               k,
-               momentum,
-               reg_l1norm,
-               reg_l2norm,
-               reg_sparseness,
-               desired_sparseness,
-               update_visible_offsets,
-               update_hidden_offsets,
-               offset_typ,
-               use_centered_gradient,
-               restrict_gradient,
-               restriction_norm,
-               use_hidden_states):
+    def _train(
+        self,
+        data,
+        epsilon,
+        k,
+        momentum,
+        reg_l1norm,
+        reg_l2norm,
+        reg_sparseness,
+        desired_sparseness,
+        update_visible_offsets,
+        update_hidden_offsets,
+        offset_typ,
+        use_centered_gradient,
+        restrict_gradient,
+        restriction_norm,
+        use_hidden_states,
+    ):
         """ The training for one batch is performed using True Gradient (GD) for k Gibbs-sampling steps.
 
         :param data: The data used for training.
@@ -714,24 +755,32 @@ class GD(CD):
         if update_hidden_offsets != 0.0 or reg_sparseness != 0.0:
             if use_hidden_states:
                 hid_states_pos = self.model.sample_h(hid_probs_pos)
-                hmean_pos = numx.mean(hid_states_pos, axis=0).reshape(1, self.model.output_dim)
+                hmean_pos = numx.mean(hid_states_pos, axis=0).reshape(
+                    1, self.model.output_dim
+                )
             else:
-                hmean_pos = numx.mean(hid_probs_pos, axis=0).reshape(1, self.model.output_dim)
+                hmean_pos = numx.mean(hid_probs_pos, axis=0).reshape(
+                    1, self.model.output_dim
+                )
 
         # Calculate the partition function
         if self.model.input_dim < self.model.output_dim:
             batch_size = numx.min([self.model.input_dim, 12])
-            ln_z = estimator.partition_function_factorize_v(self.model, beta=1.0, batchsize_exponent=batch_size,
-                                                            status=False)
+            ln_z = estimator.partition_function_factorize_v(
+                self.model, beta=1.0, batchsize_exponent=batch_size, status=False
+            )
         else:
             batch_size = numx.min([self.model.output_dim, 12])
-            ln_z = estimator.partition_function_factorize_h(self.model, beta=1.0, batchsize_exponent=batch_size,
-                                                            status=False)
+            ln_z = estimator.partition_function_factorize_h(
+                self.model, beta=1.0, batchsize_exponent=batch_size, status=False
+            )
 
         # empty negative phase parts
-        neg_gradients = [numx.zeros(self.model.w.shape),
-                         numx.zeros(self.model.bv.shape),
-                         numx.zeros(self.model.bh.shape)]
+        neg_gradients = [
+            numx.zeros(self.model.w.shape),
+            numx.zeros(self.model.bv.shape),
+            numx.zeros(self.model.bh.shape),
+        ]
 
         # Calculate gradient stepwise in batches
         bit_length = self.model.input_dim
@@ -742,61 +791,85 @@ class GD(CD):
 
         for batch in range(0, num_batches):
             # Generate current batch
-            bit_combinations = numxext.generate_binary_code(bit_length, batch_size, batch)
+            bit_combinations = numxext.generate_binary_code(
+                bit_length, batch_size, batch
+            )
             # P(x)
-            prob_x = numx.exp(
-                self.model.log_probability_v(ln_z, bit_combinations))
+            prob_x = numx.exp(self.model.log_probability_v(ln_z, bit_combinations))
             # P(h|x)
             prob_h_x = self.model.probability_h_given_v(bit_combinations)
             # Calculate gradient
-            neg_gradients[1] += numx.sum(numx.tile(prob_x, (1, self.model.input_dim)) * (bit_combinations -
-                                                                                         self.model.ov), axis=0)
-            prob_x = (numx.tile(prob_x, (1, self.model.output_dim)) * (prob_h_x - self.model.oh))
+            neg_gradients[1] += numx.sum(
+                numx.tile(prob_x, (1, self.model.input_dim))
+                * (bit_combinations - self.model.ov),
+                axis=0,
+            )
+            prob_x = numx.tile(prob_x, (1, self.model.output_dim)) * (
+                prob_h_x - self.model.oh
+            )
             neg_gradients[0] += numx.dot((bit_combinations - self.model.ov).T, prob_x)
             neg_gradients[2] += numx.sum(prob_x, axis=0)
 
-        if update_visible_offsets != 0.0 and (offset_typ[0] is 'A' or offset_typ[0] is 'M'):
-            bit_combinations = numxext.generate_binary_code(self.model.input_dim, None, 0)
+        if update_visible_offsets != 0.0 and (
+            offset_typ[0] is "A" or offset_typ[0] is "M"
+        ):
+            bit_combinations = numxext.generate_binary_code(
+                self.model.input_dim, None, 0
+            )
             prob_x = numx.exp(self.model.log_probability_v(ln_z, bit_combinations))
-            xmean_neg = numx.sum(prob_x * bit_combinations, axis=0).reshape(1, self.model.input_dim)
+            xmean_neg = numx.sum(prob_x * bit_combinations, axis=0).reshape(
+                1, self.model.input_dim
+            )
 
-        if update_hidden_offsets != 0.0 and (offset_typ[1] is 'A' or offset_typ[1] is 'M'):
-            bit_combinations = numxext.generate_binary_code(self.model.output_dim, None, 0)
+        if update_hidden_offsets != 0.0 and (
+            offset_typ[1] is "A" or offset_typ[1] is "M"
+        ):
+            bit_combinations = numxext.generate_binary_code(
+                self.model.output_dim, None, 0
+            )
             prob_h = numx.exp(self.model.log_probability_h(ln_z, bit_combinations))
-            hmean_neg = numx.sum(prob_h * bit_combinations, axis=0).reshape(1, self.model.output_dim)
+            hmean_neg = numx.sum(prob_h * bit_combinations, axis=0).reshape(
+                1, self.model.output_dim
+            )
 
         new_visible_offsets = 0.0
         if update_visible_offsets != 0.0:
-            if offset_typ[0] is 'A':
+            if offset_typ[0] is "A":
                 new_visible_offsets = (xmean_pos + xmean_neg) * 0.5
-            if offset_typ[0] is 'D':
+            if offset_typ[0] is "D":
                 new_visible_offsets = xmean_pos
-            if offset_typ[0] is 'M':
+            if offset_typ[0] is "M":
                 new_visible_offsets = xmean_neg
-            if offset_typ[0] is '0':
+            if offset_typ[0] is "0":
                 new_visible_offsets = 0.0 * xmean_pos
         new_hidden_offsets = 0.0
         if update_hidden_offsets != 0.0:
-            if offset_typ[1] is 'A':
+            if offset_typ[1] is "A":
                 new_hidden_offsets = (hmean_pos + hmean_neg) * 0.5
-            if offset_typ[1] is 'D':
+            if offset_typ[1] is "D":
                 new_hidden_offsets = hmean_pos
-            if offset_typ[1] is 'M':
+            if offset_typ[1] is "M":
                 new_hidden_offsets = hmean_neg
-            if offset_typ[1] is '0':
+            if offset_typ[1] is "0":
                 new_hidden_offsets = 0.0 * hmean_pos
 
         if use_centered_gradient is False:
             # update the centers
-            self.model.update_offsets(new_visible_offsets, new_hidden_offsets, update_visible_offsets,
-                                      update_hidden_offsets)
+            self.model.update_offsets(
+                new_visible_offsets,
+                new_hidden_offsets,
+                update_visible_offsets,
+                update_hidden_offsets,
+            )
             self.visible_offsets = 0.0
             self.hidden_offsets = 0.0
         else:
-            self.hidden_offsets = ((1.0 - update_hidden_offsets) * self.hidden_offsets + update_hidden_offsets
-                                   * new_hidden_offsets)
-            self.visible_offsets = ((1.0 - update_visible_offsets) * self.visible_offsets + update_visible_offsets
-                                    * new_visible_offsets)
+            self.hidden_offsets = (
+                1.0 - update_hidden_offsets
+            ) * self.hidden_offsets + update_hidden_offsets * new_hidden_offsets
+            self.visible_offsets = (
+                1.0 - update_visible_offsets
+            ) * self.visible_offsets + update_visible_offsets * new_visible_offsets
 
         # Calculate positive phase gradient using states or probabilities
         if use_hidden_states:
@@ -810,21 +883,23 @@ class GD(CD):
         neg_gradients[2] *= data.shape[0]
 
         # Adapt the gradients by weight decay momentum and learning rate
-        self._adapt_gradient(pos_gradients=pos_gradients,
-                             neg_gradients=neg_gradients,
-                             batch_size=data.shape[0],
-                             epsilon=epsilon,
-                             momentum=momentum,
-                             reg_l1norm=reg_l1norm,
-                             reg_l2norm=reg_l2norm,
-                             reg_sparseness=reg_sparseness,
-                             desired_sparseness=desired_sparseness,
-                             mean_hidden_activity=hmean_pos,
-                             visible_offsets=self.visible_offsets,
-                             hidden_offsets=self.hidden_offsets,
-                             use_centered_gradient=use_centered_gradient,
-                             restrict_gradient=restrict_gradient,
-                             restriction_norm=restriction_norm)
+        self._adapt_gradient(
+            pos_gradients=pos_gradients,
+            neg_gradients=neg_gradients,
+            batch_size=data.shape[0],
+            epsilon=epsilon,
+            momentum=momentum,
+            reg_l1norm=reg_l1norm,
+            reg_l2norm=reg_l2norm,
+            reg_sparseness=reg_sparseness,
+            desired_sparseness=desired_sparseness,
+            mean_hidden_activity=hmean_pos,
+            visible_offsets=self.visible_offsets,
+            hidden_offsets=self.hidden_offsets,
+            use_centered_gradient=use_centered_gradient,
+            restrict_gradient=restrict_gradient,
+            restriction_norm=restriction_norm,
+        )
 
         # update the parameters with the calculated gradient
         self.model.update_parameters(self.parameter_updates)

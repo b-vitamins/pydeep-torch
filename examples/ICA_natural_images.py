@@ -1,35 +1,35 @@
-""" Example for the Independent Component Analysis (ICA) on natural image patches.
+"""Example for the Independent Component Analysis (ICA) on natural image patches.
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        22.04.2017
+:Date:
+    22.04.2017
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 
@@ -44,7 +44,7 @@ import pydeep.misc.visualization as vis
 numx.random.seed(42)
 
 # Load data (download is not existing)
-data = io.load_natural_image_patches('NaturalImage.mat')
+data = io.load_natural_image_patches("NaturalImage.mat")
 
 # Specify image width and height for displaying
 width = height = 14
@@ -60,65 +60,69 @@ whitened_data = zca.project(data)
 
 # Create a ZCA node and train it (you could also use PCA whitened=True)
 ica = ICA(input_dim=width * height)
-ica.train(data=whitened_data,
-          iterations=100,
-          convergence=1.0,
-          status=True)
+ica.train(data=whitened_data, iterations=100, convergence=1.0, status=True)
 
 # Show whitened images
-images = vis.tile_matrix_rows(matrix=data[0:100].T,
-                              tile_width=width,
-                              tile_height=height,
-                              num_tiles_x=10,
-                              num_tiles_y=10,
-                              border_size=1,
-                              normalized=True)
-vis.imshow_matrix(matrix=images,
-                  windowtitle='First 100 image patches')
+images = vis.tile_matrix_rows(
+    matrix=data[0:100].T,
+    tile_width=width,
+    tile_height=height,
+    num_tiles_x=10,
+    num_tiles_y=10,
+    border_size=1,
+    normalized=True,
+)
+vis.imshow_matrix(matrix=images, windowtitle="First 100 image patches")
 
 # Show some whitened images
-images = vis.tile_matrix_rows(matrix=whitened_data[0:100].T,
-                              tile_width=width,
-                              tile_height=height,
-                              num_tiles_x=10,
-                              num_tiles_y=10,
-                              border_size=1,
-                              normalized=True)
-vis.imshow_matrix(matrix=images,
-                  windowtitle='First 100 image patches whitened')
+images = vis.tile_matrix_rows(
+    matrix=whitened_data[0:100].T,
+    tile_width=width,
+    tile_height=height,
+    num_tiles_x=10,
+    num_tiles_y=10,
+    border_size=1,
+    normalized=True,
+)
+vis.imshow_matrix(matrix=images, windowtitle="First 100 image patches whitened")
 
 # Show the ICA filters/bases
-ica_filters = vis.tile_matrix_rows(matrix=ica.projection_matrix,
-                                   tile_width=width,
-                                   tile_height=height,
-                                   num_tiles_x=width,
-                                   num_tiles_y=height,
-                                   border_size=1,
-                                   normalized=True)
-vis.imshow_matrix(matrix=ica_filters,
-                  windowtitle='Filters learned by ICA')
+ica_filters = vis.tile_matrix_rows(
+    matrix=ica.projection_matrix,
+    tile_width=width,
+    tile_height=height,
+    num_tiles_x=width,
+    num_tiles_y=height,
+    border_size=1,
+    normalized=True,
+)
+vis.imshow_matrix(matrix=ica_filters, windowtitle="Filters learned by ICA")
 
 # Get the optimal gabor wavelet frequency and angle for the filters
-opt_frq, opt_ang = vis.filter_frequency_and_angle(ica.projection_matrix,
-                                                  num_of_angles=40)
+opt_frq, opt_ang = vis.filter_frequency_and_angle(
+    ica.projection_matrix, num_of_angles=40
+)
 
 # Show some tuning curves
 num_filters = 20
-vis.imshow_filter_tuning_curve(ica.projection_matrix[:,0:num_filters],
-                               num_of_ang=40)
+vis.imshow_filter_tuning_curve(ica.projection_matrix[:, 0:num_filters], num_of_ang=40)
 
 # Show some optima grating
-vis.imshow_filter_optimal_gratings(ica.projection_matrix[:,0:num_filters],
-                                   opt_frq[0:num_filters],
-                                   opt_ang[0:num_filters])
+vis.imshow_filter_optimal_gratings(
+    ica.projection_matrix[:, 0:num_filters],
+    opt_frq[0:num_filters],
+    opt_ang[0:num_filters],
+)
 
 # Show histograms of frequencies and angles.
-vis.imshow_filter_frequency_angle_histogram(opt_frq=opt_frq,
-                                            opt_ang=opt_ang,
-                                            max_wavelength=14)
+vis.imshow_filter_frequency_angle_histogram(
+    opt_frq=opt_frq, opt_ang=opt_ang, max_wavelength=14
+)
 
-print("log-likelihood on all data: "+str(numx.mean(
-    ica.log_likelihood(data=whitened_data))))
+print(
+    "log-likelihood on all data: "
+    + str(numx.mean(ica.log_likelihood(data=whitened_data)))
+)
 
 # Show all windows.
 vis.show()

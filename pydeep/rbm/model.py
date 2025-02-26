@@ -1,63 +1,64 @@
-""" This module provides restricted Boltzmann machines (RBMs) with different types of units. The structure is very
-    close to the mathematical derivations to simplify the understanding. In addition, the modularity helps to create
-    other kind of RBMs without adapting the training algorithms.
+"""This module provides restricted Boltzmann machines (RBMs) with different types of units. The structure is very
+close to the mathematical derivations to simplify the understanding. In addition, the modularity helps to create
+other kind of RBMs without adapting the training algorithms.
 
-    :Implemented:
-        - centered BinaryBinary RBM (BB-RBM)
-        - centered GaussianBinary RBM (GB-RBM) with fixed variance
-        - centered GaussianBinaryVariance RBM (GB-RBM) with trainable variance
+:Implemented:
+    - centered BinaryBinary RBM (BB-RBM)
+    - centered GaussianBinary RBM (GB-RBM) with fixed variance
+    - centered GaussianBinaryVariance RBM (GB-RBM) with trainable variance
 
-        # Models without implementation of p(v),p(h),p(v,h) -> AIS, PT, true gradient, ... cannot be used!
-        - centered BinaryBinaryLabel RBM (BBL-RBM)
-        - centered GaussianBinaryLabel RBM (GBL-RBM)
+    # Models without implementation of p(v),p(h),p(v,h) -> AIS, PT, true gradient, ... cannot be used!
+    - centered BinaryBinaryLabel RBM (BBL-RBM)
+    - centered GaussianBinaryLabel RBM (GBL-RBM)
 
-        # Models with intractable p(v),p(h),p(v,h) -> AIS, PT, true gradient, ... cannot be used!
-        - centered BinaryRect RBM (BR-RBM)
-        - centered RectBinary RBM (RB-RBM)
-        - centered RectRect RBM (RR-RBM)
-        - centered GaussianRect RBM (GR-RBM)
-        - centered GaussianRectVariance RBM (GRV-RBM)
+    # Models with intractable p(v),p(h),p(v,h) -> AIS, PT, true gradient, ... cannot be used!
+    - centered BinaryRect RBM (BR-RBM)
+    - centered RectBinary RBM (RB-RBM)
+    - centered RectRect RBM (RR-RBM)
+    - centered GaussianRect RBM (GR-RBM)
+    - centered GaussianRectVariance RBM (GRV-RBM)
 
-    :Info:
-        For the derivations .. seealso::
-        https://www.ini.rub.de/PEOPLE/wiskott/Reprints/Melchior-2012-MasterThesis-RBMs.pdf
+:Info:
+    For the derivations .. seealso::
+    https://www.ini.rub.de/PEOPLE/wiskott/Reprints/Melchior-2012-MasterThesis-RBMs.pdf
 
-        A usual way to create a new unit is to inherit from a given RBM class
-        and override the functions that changed, e.g. Gaussian-Binary RBM
-        inherited from the Binary-Binary RBM.
+    A usual way to create a new unit is to inherit from a given RBM class
+    and override the functions that changed, e.g. Gaussian-Binary RBM
+    inherited from the Binary-Binary RBM.
 
-    :Version:
-        1.1.0
+:Version:
+    1.1.0
 
-    :Date:
-        04.04.2017
+:Date:
+    04.04.2017
 
-    :Author:
-        Jan Melchior
+:Author:
+    Jan Melchior
 
-    :Contact:
-        JanMelchior@gmx.de
+:Contact:
+    JanMelchior@gmx.de
 
-    :License:
+:License:
 
-        Copyright (C) 2017 Jan Melchior
+    Copyright (C) 2017 Jan Melchior
 
-        This file is part of the Python library PyDeep.
+    This file is part of the Python library PyDeep.
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
 import numpy as numx
 from pydeep.base.activationfunction import Sigmoid, SoftMax, SoftPlus
 from pydeep.base.basicstructure import BipartiteGraph
@@ -65,20 +66,20 @@ from pydeep.base.numpyextension import multinominal_batch_sampling
 
 
 class BinaryBinaryRBM(BipartiteGraph):
-    """ Implementation of a centered restricted Boltzmann machine with binary visible and binary hidden units.
+    """Implementation of a centered restricted Boltzmann machine with binary visible and binary hidden units."""
 
-    """
-
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data  structures. It is recommended to pass the \
          training data to initialize the network automatically.
 
@@ -114,29 +115,32 @@ class BinaryBinaryRBM(BipartiteGraph):
         :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
         """
         # Call constructor of superclass
-        super(BinaryBinaryRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             visible_activation_function=Sigmoid,
-                             hidden_activation_function=Sigmoid,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(BinaryBinaryRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            visible_activation_function=Sigmoid,
+            hidden_activation_function=Sigmoid,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
 
         self.bv_base = self._getbasebias()
         self._fast_PT = True
 
-    def _add_visible_units(self,
-                           num_new_visibles,
-                           position=0,
-                           initial_weights='AUTO',
-                           initial_bias='AUTO',
-                           initial_offsets='AUTO',
-                           data=None):
+    def _add_visible_units(
+        self,
+        num_new_visibles,
+        position=0,
+        initial_weights="AUTO",
+        initial_bias="AUTO",
+        initial_offsets="AUTO",
+        data=None,
+    ):
         """ This function adds new visible units at the given position to the model. \
             .. Warning:: If the parameters are changed. the trainer needs to be
                      reinitialized.
@@ -160,16 +164,18 @@ class BinaryBinaryRBM(BipartiteGraph):
         :param data: If data is given and the offset and bias is initzialized accordingly, if 'AUTO' is chosen.
         :type data: numpy array [num datapoints, num_new_visibles]
         """
-        super(BinaryBinaryRBM, self)._add_visible_units(num_new_visibles,
-                                                        position,
-                                                        initial_weights,
-                                                        initial_bias,
-                                                        initial_offsets,
-                                                        data)
+        super(BinaryBinaryRBM, self)._add_visible_units(
+            num_new_visibles,
+            position,
+            initial_weights,
+            initial_bias,
+            initial_offsets,
+            data,
+        )
         self.bv_base = self._getbasebias()
 
     def _remove_visible_units(self, indices):
-        """ This function removes the visible units whose indices are given.
+        """This function removes the visible units whose indices are given.
             .. Warning:: If the parameters are changed. the trainer needs to be
                      reinitialized.
 
@@ -180,7 +186,7 @@ class BinaryBinaryRBM(BipartiteGraph):
         self.bv_base = numx.delete(self.bv_base, numx.array(indices), axis=1)
 
     def _calculate_weight_gradient(self, v, h):
-        """ This function calculates the gradient for the weights from the visible and hidden activations.
+        """This function calculates the gradient for the weights from the visible and hidden activations.
 
         :param v: Visible activations.
         :type v: numpy arrays [batchsize, input dim]
@@ -194,7 +200,7 @@ class BinaryBinaryRBM(BipartiteGraph):
         return numx.dot((v - self.ov).T, h - self.oh)
 
     def _calculate_visible_bias_gradient(self, v):
-        """ This function calculates the gradient for the visible biases.
+        """This function calculates the gradient for the visible biases.
 
         :param v: Visible activations.
         :type v: numpy arrays [batch_size, input dim]
@@ -205,7 +211,7 @@ class BinaryBinaryRBM(BipartiteGraph):
         return numx.sum(v - self.ov, axis=0).reshape(1, v.shape[1])
 
     def _calculate_hidden_bias_gradient(self, h):
-        """ This function calculates the gradient for the hidden biases.
+        """This function calculates the gradient for the hidden biases.
 
         :param h: Hidden activations.
         :type h: numpy arrays [batch size, output dim]
@@ -228,8 +234,11 @@ class BinaryBinaryRBM(BipartiteGraph):
         :return: Gradients for all parameters.
         :rtype: list of numpy arrays (num parameters x [parameter.shape])
         """
-        return [self._calculate_weight_gradient(v, h), self._calculate_visible_bias_gradient(v),
-                self._calculate_hidden_bias_gradient(h)]
+        return [
+            self._calculate_weight_gradient(v, h),
+            self._calculate_visible_bias_gradient(v),
+            self._calculate_hidden_bias_gradient(h),
+        ]
 
     def sample_v(self, v, beta=None, use_base_model=False):
         """ Samples the visible variables from the conditional probabilities v given h.
@@ -332,18 +341,18 @@ class BinaryBinaryRBM(BipartiteGraph):
         """
         temp_v = v - self.ov
         temp_h = h - self.oh
-        energy = - numx.dot(temp_v, self.bv.T) - numx.dot(temp_h, self.bh.T) - numx.sum(
-            numx.dot(temp_v, self.w) * temp_h, axis=1).reshape(v.shape[0], 1)
+        energy = (
+            -numx.dot(temp_v, self.bv.T)
+            - numx.dot(temp_h, self.bh.T)
+            - numx.sum(numx.dot(temp_v, self.w) * temp_h, axis=1).reshape(v.shape[0], 1)
+        )
         if beta is not None:
             energy *= beta
             if use_base_model is True:
                 energy -= (1.0 - beta) * numx.dot(temp_v, self.bv_base.T)
         return energy
 
-    def unnormalized_log_probability_v(self,
-                                       v,
-                                       beta=None,
-                                       use_base_model=False):
+    def unnormalized_log_probability_v(self, v, beta=None, use_base_model=False):
         """ Computes the unnormalized log probabilities of v.
 
         :param v: Visible states.
@@ -367,14 +376,17 @@ class BinaryBinaryRBM(BipartiteGraph):
             activation *= beta
             bias *= beta
             if use_base_model is True:
-                bias += (1.0 - beta) * numx.dot(temp_v, self.bv_base.T).reshape(temp_v.shape[0], 1)
-        return bias + numx.sum(numx.log(numx.exp(activation * (1.0 - self.oh)) + numx.exp(
-            -activation * self.oh)), axis=1).reshape(v.shape[0], 1)
+                bias += (1.0 - beta) * numx.dot(temp_v, self.bv_base.T).reshape(
+                    temp_v.shape[0], 1
+                )
+        return bias + numx.sum(
+            numx.log(
+                numx.exp(activation * (1.0 - self.oh)) + numx.exp(-activation * self.oh)
+            ),
+            axis=1,
+        ).reshape(v.shape[0], 1)
 
-    def unnormalized_log_probability_h(self,
-                                       h,
-                                       beta=None,
-                                       use_base_model=False):
+    def unnormalized_log_probability_h(self, h, beta=None, use_base_model=False):
         """ Computes the unnormalized log probabilities of h.
 
         :param h: Hidden states.
@@ -398,8 +410,12 @@ class BinaryBinaryRBM(BipartiteGraph):
             bias *= beta
             if use_base_model is True:
                 activation += (1.0 - beta) * self.bv_base
-        return bias + numx.sum(numx.log(numx.exp(activation * (1.0 - self.ov)) +
-                                        numx.exp(-activation * self.ov)), axis=1).reshape(h.shape[0], 1)
+        return bias + numx.sum(
+            numx.log(
+                numx.exp(activation * (1.0 - self.ov)) + numx.exp(-activation * self.ov)
+            ),
+            axis=1,
+        ).reshape(h.shape[0], 1)
 
     def log_probability_v(self, logz, v, beta=None, use_base_model=False):
         """ Computes the log-probability / LogLikelihood(LL) for the given visible units for this model. To estimate \
@@ -449,12 +465,7 @@ class BinaryBinaryRBM(BipartiteGraph):
         """
         return self.unnormalized_log_probability_h(h, beta, use_base_model) - logz
 
-    def log_probability_v_h(self,
-                            logz,
-                            v,
-                            h,
-                            beta=None,
-                            use_base_model=False):
+    def log_probability_v_h(self, logz, v, h, beta=None, use_base_model=False):
         """ Computes the joint log-probability / LogLikelihood(LL) for the given visible and hidden units for this \
             model. To estimate the LL we need to know the logarithm of the partition function Z. For small models it \
             is possible to calculate Z, however since this involves calculating all possible hidden states, it is \
@@ -495,8 +506,12 @@ class BinaryBinaryRBM(BipartiteGraph):
         :rtype: float
         """
         if use_base_model is True:
-            return numx.sum(numx.log(numx.exp(-self.ov * self.bv_base) + numx.exp((1.0 - self.ov) * self.bv_base))
-                            ) + self.output_dim * numx.log(2.0)
+            return numx.sum(
+                numx.log(
+                    numx.exp(-self.ov * self.bv_base)
+                    + numx.exp((1.0 - self.ov) * self.bv_base)
+                )
+            ) + self.output_dim * numx.log(2.0)
         else:
             return self.input_dim * numx.log(2.0) + self.output_dim * numx.log(2.0)
 
@@ -507,26 +522,28 @@ class BinaryBinaryRBM(BipartiteGraph):
         :return: Base bias.
         :rtype: numpy array [1,  input dim]
         """
-        save_mean = numx.clip(self.dtype(self._data_mean), 0.00001, 0.99999).reshape(1, self._data_mean.shape[1])
+        save_mean = numx.clip(self.dtype(self._data_mean), 0.00001, 0.99999).reshape(
+            1, self._data_mean.shape[1]
+        )
         return numx.log(save_mean) - numx.log(1.0 - save_mean)
 
 
 class GaussianBinaryRBM(BinaryBinaryRBM):
-    """ Implementation of a centered Restricted Boltzmann machine with Gaussian visible and binary hidden units.
+    """Implementation of a centered Restricted Boltzmann machine with Gaussian visible and binary hidden units."""
 
-    """
-
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_sigma='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_sigma="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data structures. It is recommended to pass the \
             training data to initialize the network automatically.
 
@@ -564,42 +581,45 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         :param dtype: Used data type i.e. numpy.float64
         :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
         """
-        if initial_visible_bias is 'AUTO' or initial_visible_bias is 'INVERSE_SIGMOID':
+        if initial_visible_bias is "AUTO" or initial_visible_bias is "INVERSE_SIGMOID":
             if data is not None:
                 initial_visible_bias = numx.mean(data, axis=0).reshape(1, data.shape[1])
             else:
                 initial_visible_bias = 0.0
 
-        if initial_visible_offsets is 'AUTO':
+        if initial_visible_offsets is "AUTO":
             initial_visible_offsets = 0.0
 
-        if initial_hidden_offsets is 'AUTO':
+        if initial_hidden_offsets is "AUTO":
             initial_hidden_offsets = 0.0
 
         # Call constructor of superclass
-        super(GaussianBinaryRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(GaussianBinaryRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
 
         if data is None:
             self._data_std = numx.ones((1, self.input_dim), dtype=self.dtype)
             self._data_mean = numx.zeros((1, self.input_dim), dtype=self.dtype)
         else:
-            self._data_std = numx.clip(self._data_std, 0.001, numx.finfo(self.dtype).max)
+            self._data_std = numx.clip(
+                self._data_std, 0.001, numx.finfo(self.dtype).max
+            )
 
         # No Simoid units lead to 4 times smaller initial values
-        if initial_weights is 'AUTO':
+        if initial_weights is "AUTO":
             self.w /= 4.0
 
         self.sigma = numx.ones((1, self.input_dim), dtype=self.dtype)
-        if initial_sigma is 'AUTO':
+        if initial_sigma is "AUTO":
             self.sigma *= self._data_std
         else:
             if numx.isscalar(initial_sigma):
@@ -610,14 +630,16 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         self.bv_base = numx.copy(self._data_mean)
         self._fast_PT = False
 
-    def _add_visible_units(self,
-                           num_new_visibles,
-                           position=0,
-                           initial_weights='AUTO',
-                           initial_bias='AUTO',
-                           initial_sigmas=1.0,
-                           initial_offsets='AUTO',
-                           data=None):
+    def _add_visible_units(
+        self,
+        num_new_visibles,
+        position=0,
+        initial_weights="AUTO",
+        initial_bias="AUTO",
+        initial_sigmas=1.0,
+        initial_offsets="AUTO",
+        data=None,
+    ):
         """ This function adds new visible units at the given position to the model.
             .. Warning:: If the parameters are changed. the trainer needs to be
                      reinitialized.
@@ -645,55 +667,75 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         :type data: numpy array [num datapoints, num_new_visibles]
 
         """
-        if initial_weights is 'AUTO':
-            initial_weights = numx.array((2.0 * numx.random.rand(
-                num_new_visibles, self.output_dim) - 1.0) * (numx.sqrt(6.0 / (self.input_dim + self.output_dim +
-                                                                              num_new_visibles))), dtype=self.dtype)
+        if initial_weights is "AUTO":
+            initial_weights = numx.array(
+                (2.0 * numx.random.rand(num_new_visibles, self.output_dim) - 1.0)
+                * (
+                    numx.sqrt(
+                        6.0 / (self.input_dim + self.output_dim + num_new_visibles)
+                    )
+                ),
+                dtype=self.dtype,
+            )
 
-        if initial_bias is 'AUTO' or initial_bias is 'INVERSE_SIGMOID':
+        if initial_bias is "AUTO" or initial_bias is "INVERSE_SIGMOID":
             if data is not None:
                 initial_bias = data.mean(axis=0).reshape(1, self.input_dim)
             else:
                 initial_bias = 0.0
 
-        if initial_offsets is 'AUTO':
+        if initial_offsets is "AUTO":
             initial_offsets = 0.0
         bv_base_old = self.bv_base
-        super(GaussianBinaryRBM, self)._add_visible_units(num_new_visibles,
-                                                          position,
-                                                          initial_weights,
-                                                          initial_bias,
-                                                          initial_offsets,
-                                                          data)
+        super(GaussianBinaryRBM, self)._add_visible_units(
+            num_new_visibles,
+            position,
+            initial_weights,
+            initial_bias,
+            initial_offsets,
+            data,
+        )
 
         self._data_std = numx.clip(self._data_std, 0.001, numx.finfo(self.dtype).max)
 
-        if initial_sigmas is 'AUTO':
+        if initial_sigmas is "AUTO":
             if data is None:
                 new_sigma = numx.ones((1, num_new_visibles), dtype=self.dtype)
             else:
-                new_sigma = numx.clip(data.std(axis=0), 0.001, numx.finfo(self.dtype).max).reshape(1, num_new_visibles)
+                new_sigma = numx.clip(
+                    data.std(axis=0), 0.001, numx.finfo(self.dtype).max
+                ).reshape(1, num_new_visibles)
         else:
             if numx.isscalar(initial_sigmas):
                 new_sigma = numx.ones((1, num_new_visibles)) * initial_sigmas
             else:
                 new_sigma = numx.array(initial_sigmas)
-        self.sigma = numx.insert(self.sigma, numx.array(numx.ones(num_new_visibles) * position, dtype=int), new_sigma,
-                                 axis=1)
+        self.sigma = numx.insert(
+            self.sigma,
+            numx.array(numx.ones(num_new_visibles) * position, dtype=int),
+            new_sigma,
+            axis=1,
+        )
 
         new_bv_base = numx.zeros((1, num_new_visibles))
         if data is not None:
             new_bv_base = data.mean(axis=0).reshape(1, data.shape[1])
-        self.bv_base = numx.insert(bv_base_old, numx.array(numx.ones(num_new_visibles) * position, dtype=int),
-                                   new_bv_base, axis=1)
+        self.bv_base = numx.insert(
+            bv_base_old,
+            numx.array(numx.ones(num_new_visibles) * position, dtype=int),
+            new_bv_base,
+            axis=1,
+        )
 
-    def _add_hidden_units(self,
-                          num_new_hiddens,
-                          position=0,
-                          initial_weights='AUTO',
-                          initial_bias='AUTO',
-                          initial_offsets='AUTO'):
-        """ This function adds new hidden units at the given position to the model.
+    def _add_hidden_units(
+        self,
+        num_new_hiddens,
+        position=0,
+        initial_weights="AUTO",
+        initial_bias="AUTO",
+        initial_offsets="AUTO",
+    ):
+        """This function adds new hidden units at the given position to the model.
             .. Warning:: If the parameters are changed. the trainer needs to be
                      reinitialized.
 
@@ -713,24 +755,28 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         :type initial_offsets: 'AUTO' or scalar or numpy array [1, num_new_hidden
         """
         # No Simoid units lead to 4 times smaller initial values
-        if initial_weights is 'AUTO':
-            initial_weights = numx.array((2.0 * numx.random.rand(
-                self.input_dim, num_new_hiddens) - 1.0) * (numx.sqrt(6.0 / (self.input_dim + self.output_dim +
-                                                                            num_new_hiddens))), dtype=self.dtype)
-        if initial_bias is 'AUTO' or initial_bias is 'INVERSE_SIGMOID':
+        if initial_weights is "AUTO":
+            initial_weights = numx.array(
+                (2.0 * numx.random.rand(self.input_dim, num_new_hiddens) - 1.0)
+                * (
+                    numx.sqrt(
+                        6.0 / (self.input_dim + self.output_dim + num_new_hiddens)
+                    )
+                ),
+                dtype=self.dtype,
+            )
+        if initial_bias is "AUTO" or initial_bias is "INVERSE_SIGMOID":
             initial_bias = 0.0
 
-        if initial_offsets is 'AUTO':
+        if initial_offsets is "AUTO":
             initial_offsets = 0.0
 
-        super(GaussianBinaryRBM, self)._add_hidden_units(num_new_hiddens,
-                                                         position,
-                                                         initial_weights,
-                                                         initial_bias,
-                                                         initial_offsets)
+        super(GaussianBinaryRBM, self)._add_hidden_units(
+            num_new_hiddens, position, initial_weights, initial_bias, initial_offsets
+        )
 
     def _remove_visible_units(self, indices):
-        """ This function removes the visible units whose indices are given.
+        """This function removes the visible units whose indices are given.
             .. Warning:: If the parameters are changed. the trainer needs to be
                      reinitialized.
 
@@ -743,7 +789,7 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         self.sigma_base = numx.delete(self.sigma_base, numx.array(indices), axis=1)
 
     def _calculate_weight_gradient(self, v, h):
-        """ This function calculates the gradient for the weights from the visible and hidden activations.
+        """This function calculates the gradient for the weights from the visible and hidden activations.
 
         :param v: Visible activations.
         :type v: numpy arrays [batchsize, input dim]
@@ -754,21 +800,23 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         :return: Weight gradient.
         :rtype: numpy arrays [input dim, output dim]
         """
-        return numx.dot(((v - self.ov) / (self.sigma ** 2)).T, h - self.oh)
+        return numx.dot(((v - self.ov) / (self.sigma**2)).T, h - self.oh)
 
     def _calculate_visible_bias_gradient(self, v):
-        """ This function calculates the gradient for the visible biases.
+        """This function calculates the gradient for the visible biases.
 
-                :param v: Visible activations.
-                :type v: numpy arrays [batch_size, input dim]
+        :param v: Visible activations.
+        :type v: numpy arrays [batch_size, input dim]
 
-                :return: Visible bias gradient.
-                :rtype: numpy arrays [1, input dim]
+        :return: Visible bias gradient.
+        :rtype: numpy arrays [1, input dim]
         """
-        return (numx.sum(v - self.ov - self.bv, axis=0).reshape(1, v.shape[1])) / (self.sigma ** 2)
+        return (numx.sum(v - self.ov - self.bv, axis=0).reshape(1, v.shape[1])) / (
+            self.sigma**2
+        )
 
     def sample_v(self, v, beta=None, use_base_model=False):
-        """ Samples the visible variables from the conditional probabilities v given h.
+        """Samples the visible variables from the conditional probabilities v given h.
 
         :param v: Conditional probabilities of v given h.
         :type v: numpy array [batch size, input dim]
@@ -830,10 +878,12 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         """
         if beta is not None:
             temp_sigma = beta * self.sigma + (1.0 - beta) * self.sigma_base
-            activation = self.bh + beta * numx.dot((v - self.ov) / (temp_sigma ** 2), self.w)
+            activation = self.bh + beta * numx.dot(
+                (v - self.ov) / (temp_sigma**2), self.w
+            )
         else:
             temp_sigma = self.sigma
-            activation = self.bh + numx.dot((v - self.ov) / (temp_sigma ** 2), self.w)
+            activation = self.bh + numx.dot((v - self.ov) / (temp_sigma**2), self.w)
         return self._hidden_post_activation(activation)
 
     def energy(self, v, h, beta=None, use_base_model=False):
@@ -860,20 +910,23 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         if beta is not None:
             temp_bv = self.bv * beta + self.bv_base * (1.0 - beta)
             temp_bh = beta * self.bh
-            temp_sigma = (self.sigma * beta + self._data_std * (1.0 - beta))
-            temp_vw = beta * numx.dot(temp_v / (temp_sigma ** 2), self.w)
+            temp_sigma = self.sigma * beta + self._data_std * (1.0 - beta)
+            temp_vw = beta * numx.dot(temp_v / (temp_sigma**2), self.w)
         else:
             temp_bv = self.bv
             temp_bh = self.bh
             temp_sigma = self.sigma
-            temp_vw = numx.dot(temp_v / (temp_sigma ** 2), self.w)
-        return (0.5 * numx.sum(((temp_v - temp_bv) / temp_sigma) ** 2, axis=1).reshape(h.shape[0], 1)
-                - numx.dot(temp_h, temp_bh.T) - numx.sum(temp_vw * temp_h, axis=1).reshape(h.shape[0], 1))
+            temp_vw = numx.dot(temp_v / (temp_sigma**2), self.w)
+        return (
+            0.5
+            * numx.sum(((temp_v - temp_bv) / temp_sigma) ** 2, axis=1).reshape(
+                h.shape[0], 1
+            )
+            - numx.dot(temp_h, temp_bh.T)
+            - numx.sum(temp_vw * temp_h, axis=1).reshape(h.shape[0], 1)
+        )
 
-    def unnormalized_log_probability_v(self,
-                                       v,
-                                       beta=None,
-                                       use_base_model=False):
+    def unnormalized_log_probability_v(self, v, beta=None, use_base_model=False):
         """ Computes the unnormalized log probabilities of v.
             ln(z*p(v)) = ln(p(v))-ln(z)+ln(z) = ln(p(v)).
 
@@ -901,16 +954,17 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
             temp_sigma = self.sigma
             temp_bv = self.bv
             temp_w = self.w
-        activation = numx.dot(temp_v / (temp_sigma ** 2), temp_w) + temp_bh
+        activation = numx.dot(temp_v / (temp_sigma**2), temp_w) + temp_bh
         bias = ((temp_v - temp_bv) / temp_sigma) ** 2
-        activation = (-0.5 * numx.sum(bias, axis=1).reshape(v.shape[0], 1) + numx.sum(numx.log(numx.exp(
-            activation * (1 - self.oh)) + numx.exp(-activation * self.oh)), axis=1).reshape(v.shape[0], 1))
+        activation = -0.5 * numx.sum(bias, axis=1).reshape(v.shape[0], 1) + numx.sum(
+            numx.log(
+                numx.exp(activation * (1 - self.oh)) + numx.exp(-activation * self.oh)
+            ),
+            axis=1,
+        ).reshape(v.shape[0], 1)
         return activation
 
-    def unnormalized_log_probability_h(self,
-                                       h,
-                                       beta=None,
-                                       use_base_model=False):
+    def unnormalized_log_probability_h(self, h, beta=None, use_base_model=False):
         """ Computes the unnormalized log probabilities of h.
 
         :param h: Hidden states.
@@ -937,14 +991,18 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
             temp_w = self.w
             temp_bv = self.bv + self.ov
         temp_wh = numx.dot(temp_h, temp_w.T)
-        return (self.input_dim * 0.5 * numx.log(2.0 * numx.pi)
-                + numx.sum(numx.log(temp_sigma))
-                + numx.dot(temp_h, temp_bh.T).reshape(h.shape[0], 1)
-                + numx.sum(((temp_bv + temp_wh) / (numx.sqrt(2) * temp_sigma)) ** 2, axis=1).reshape(h.shape[0], 1)
-                - numx.sum((temp_bv / (numx.sqrt(2) * temp_sigma)) ** 2))
+        return (
+            self.input_dim * 0.5 * numx.log(2.0 * numx.pi)
+            + numx.sum(numx.log(temp_sigma))
+            + numx.dot(temp_h, temp_bh.T).reshape(h.shape[0], 1)
+            + numx.sum(
+                ((temp_bv + temp_wh) / (numx.sqrt(2) * temp_sigma)) ** 2, axis=1
+            ).reshape(h.shape[0], 1)
+            - numx.sum((temp_bv / (numx.sqrt(2) * temp_sigma)) ** 2)
+        )
 
     def _base_log_partition(self, use_base_model=False):
-        """ Returns the base partition function which needs to be calculateable.
+        """Returns the base partition function which needs to be calculateable.
 
         :param use_base_model: DUMMY sicne the integral does not change if the mean is shifted.
         :type use_base_model: bool
@@ -952,8 +1010,15 @@ class GaussianBinaryRBM(BinaryBinaryRBM):
         :return: Partition function for zero parameters.
         :rtype: float
         """
-        return (self.input_dim * 0.5 * numx.log(2.0 * numx.pi) + numx.sum(numx.log(self.sigma_base))
-                + numx.sum(numx.log(numx.exp(-self.oh * self.bh) + numx.exp((1.0 - self.oh) * self.bh))))
+        return (
+            self.input_dim * 0.5 * numx.log(2.0 * numx.pi)
+            + numx.sum(numx.log(self.sigma_base))
+            + numx.sum(
+                numx.log(
+                    numx.exp(-self.oh * self.bh) + numx.exp((1.0 - self.oh) * self.bh)
+                )
+            )
+        )
 
 
 class GaussianBinaryVarianceRBM(GaussianBinaryRBM):
@@ -962,17 +1027,19 @@ class GaussianBinaryVarianceRBM(GaussianBinaryRBM):
 
     """
 
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_sigma='AUTO',
-                 initial_visible_offsets=0.0,
-                 initial_hidden_offsets=0.0,
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_sigma="AUTO",
+        initial_visible_offsets=0.0,
+        initial_hidden_offsets=0.0,
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data structures. It is recommended to pass the \
             training data to initialize the network automatically.
 
@@ -1011,20 +1078,21 @@ class GaussianBinaryVarianceRBM(GaussianBinaryRBM):
         :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
         """
         # Call constructor of superclass
-        super(GaussianBinaryVarianceRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_sigma=initial_sigma,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(GaussianBinaryVarianceRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_sigma=initial_sigma,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
 
     def _calculate_sigma_gradient(self, v, h):
-        """ This function calculates the gradient for the variance of the RBM.
+        """This function calculates the gradient for the variance of the RBM.
 
         :param v: States of the visible variables.
         :type v: numpy arrays [batchsize, input dim]
@@ -1036,11 +1104,12 @@ class GaussianBinaryVarianceRBM(GaussianBinaryRBM):
         :rtype: list of numpy arrays [input dim,1]
         """
         var_diff = (v - self.bv - self.ov) ** 2
-        return ((var_diff - 2.0 * (v - self.ov) * numx.dot(h, self.w.T)).sum(axis=0) / (self.sigma *
-                                                                                        self.sigma * self.sigma))
+        return (var_diff - 2.0 * (v - self.ov) * numx.dot(h, self.w.T)).sum(axis=0) / (
+            self.sigma * self.sigma * self.sigma
+        )
 
     def get_parameters(self):
-        """ This function returns all mordel parameters in a list.
+        """This function returns all mordel parameters in a list.
 
         :return: The parameter references in a list.
         :rtype: list
@@ -1060,8 +1129,12 @@ class GaussianBinaryVarianceRBM(GaussianBinaryRBM):
         :return: Gradients for all parameters.
         :rtype: numpy arrays (num parameters x [parameter.shape])
         """
-        return [self._calculate_weight_gradient(v, h), self._calculate_visible_bias_gradient(v),
-                self._calculate_hidden_bias_gradient(h), self._calculate_sigma_gradient(v, h)]
+        return [
+            self._calculate_weight_gradient(v, h),
+            self._calculate_visible_bias_gradient(v),
+            self._calculate_hidden_bias_gradient(h),
+            self._calculate_sigma_gradient(v, h),
+        ]
 
 
 class BinaryBinaryLabelRBM(BinaryBinaryRBM):
@@ -1070,17 +1143,19 @@ class BinaryBinaryLabelRBM(BinaryBinaryRBM):
 
     """
 
-    def __init__(self,
-                 number_visibles,
-                 number_labels,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_labels,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data  structures. It is recommended to pass the \
             training data to initialize the network automatically.
 
@@ -1119,28 +1194,27 @@ class BinaryBinaryLabelRBM(BinaryBinaryRBM):
         :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
         """
         # Call constructor of superclass
-        super(BinaryBinaryLabelRBM,
-              self).__init__(number_visibles=number_visibles + number_labels,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(BinaryBinaryLabelRBM, self).__init__(
+            number_visibles=number_visibles + number_labels,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
 
         self.data_dim = number_visibles
         self.label_dim = number_labels
 
         class SoftMaxSigmoid(object):
-            """ SoftMax + Sigmoid conbination.
-
-            """
+            """SoftMax + Sigmoid conbination."""
 
             @classmethod
             def f(cls, x):
-                """ Calculates the SoftPlus function value for a given input x.
+                """Calculates the SoftPlus function value for a given input x.
 
                 :param x: Input data.
                 :type x: scalar or numpy array.
@@ -1148,8 +1222,12 @@ class BinaryBinaryLabelRBM(BinaryBinaryRBM):
                 :return: Value of the SoftPlus function for x.
                 :rtype: scalar or numpy array with the same shape as x.
                 """
-                return numx.hstack((Sigmoid.f(x[:, 0:self.data_dim]),
-                                    SoftMax.f(x[:, self.data_dim:])))
+                return numx.hstack(
+                    (
+                        Sigmoid.f(x[:, 0 : self.data_dim]),
+                        SoftMax.f(x[:, self.data_dim :]),
+                    )
+                )
 
         self.visible_activation_function = SoftMaxSigmoid
 
@@ -1169,59 +1247,55 @@ class BinaryBinaryLabelRBM(BinaryBinaryRBM):
         :return: States for v.
         :rtype: numpy array [batch size, input dim]
         """
-        ''' # Proof of concept
+        """ # Proof of concept
         result = numx.random.multinomial(1,v[0,self.visible_dim:self.input_dim])
         for i in range(1,v.shape[0]):
             result = numx.vstack((result,numx.random.multinomial(1,v[i,self.visible_dim:self.input_dim])))
         result = numx.hstack((v[:,0:self.visible_dim] > numx.random.random((v.shape[0],self.visible_dim)),result))
         return self.dtype(result)
-        '''
-        return numx.hstack((v[:, 0:self.data_dim] > numx.random.random((v.shape[0], self.data_dim)),
-                            self.dtype(multinominal_batch_sampling(v[:, self.data_dim:], False))))
+        """
+        return numx.hstack(
+            (
+                v[:, 0 : self.data_dim]
+                > numx.random.random((v.shape[0], self.data_dim)),
+                self.dtype(multinominal_batch_sampling(v[:, self.data_dim :], False)),
+            )
+        )
 
     def _add_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def _remove_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def energy(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def unnormalized_log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def unnormalized_log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def log_probability_v_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def _base_log_partition(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
 
@@ -1231,18 +1305,20 @@ class GaussianBinaryLabelRBM(GaussianBinaryRBM):
 
     """
 
-    def __init__(self,
-                 number_visibles,
-                 number_labels,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_sigma='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_labels,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_sigma="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data  structures. It is recommended to pass the \
              training data to initialize the network automatically.
 
@@ -1285,30 +1361,31 @@ class GaussianBinaryLabelRBM(GaussianBinaryRBM):
          :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
          """
         # Call constructor of superclass
-        super(GaussianBinaryLabelRBM,
-              self).__init__(number_visibles=number_visibles + number_labels,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_sigma=initial_sigma,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(GaussianBinaryLabelRBM, self).__init__(
+            number_visibles=number_visibles + number_labels,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_sigma=initial_sigma,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
         self.data_dim = number_visibles
         self.label_dim = number_labels
 
-        self.sigma[:, self.data_dim:] = numx.ones((1, self.label_dim), dtype=self.dtype)
+        self.sigma[:, self.data_dim :] = numx.ones(
+            (1, self.label_dim), dtype=self.dtype
+        )
 
         class SoftMaxLinear(object):
-            """ SoftMax + Sigmoid conbination.
-
-            """
+            """SoftMax + Sigmoid conbination."""
 
             @classmethod
             def f(cls, x):
-                """ Calculates the SoftPlus function value for a given input x.
+                """Calculates the SoftPlus function value for a given input x.
 
                 :param x: Input data.
                 :type x: scalar or numpy array.
@@ -1316,8 +1393,12 @@ class GaussianBinaryLabelRBM(GaussianBinaryRBM):
                 :return: Value of the SoftPlus function for x.
                 :rtype: scalar or numpy array with the same shape as x.
                 """
-                return numx.hstack((x[:, 0:self.visible_dim],
-                                    SoftMax.f(x[:, self.visible_dim:self.input_dim])))
+                return numx.hstack(
+                    (
+                        x[:, 0 : self.visible_dim],
+                        SoftMax.f(x[:, self.visible_dim : self.input_dim]),
+                    )
+                )
 
         self.visible_activation_function = SoftMaxLinear
 
@@ -1338,75 +1419,79 @@ class GaussianBinaryLabelRBM(GaussianBinaryRBM):
         :rtype: numpy array [batch size, input dim]
         """
         if beta is None:
-            res = v[:, 0:self.data_dim] + numx.random.randn(v.shape[0], self.data_dim) * self.sigma[:, 0:self.data_dim]
+            res = (
+                v[:, 0 : self.data_dim]
+                + numx.random.randn(v.shape[0], self.data_dim)
+                * self.sigma[:, 0 : self.data_dim]
+            )
         else:
-            res = (v[:, 0:self.data_dim] + numx.random.randn(v.shape[0], self.data_dim)
-                   * (beta * (self.sigma - self._data_std) + self._data_std)[:, 0:self.data_dim])
+            res = (
+                v[:, 0 : self.data_dim]
+                + numx.random.randn(v.shape[0], self.data_dim)
+                * (beta * (self.sigma - self._data_std) + self._data_std)[
+                    :, 0 : self.data_dim
+                ]
+            )
 
-        return numx.hstack((res, self.dtype(multinominal_batch_sampling(v[:, self.data_dim:], False))))
+        return numx.hstack(
+            (res, self.dtype(multinominal_batch_sampling(v[:, self.data_dim :], False)))
+        )
 
     def _add_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def _remove_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def energy(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def unnormalized_log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def unnormalized_log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def log_probability_v_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
     def _base_log_partition(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not yet implemented!")
 
 
 class BinaryRectRBM(BinaryBinaryRBM):
-    """ Implementation of a centered Restricted Boltzmann machine with Binary visible and Noisy linear rectified
-        hidden units.
+    """Implementation of a centered Restricted Boltzmann machine with Binary visible and Noisy linear rectified
+    hidden units.
 
     """
 
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data  structures. It is recommended to pass the \
             training data to initialize the network automatically.
 
@@ -1443,16 +1528,17 @@ class BinaryRectRBM(BinaryBinaryRBM):
          :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
          """
         # Call constructor of superclass
-        super(BinaryBinaryRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(BinaryBinaryRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
         self.temp = 0
         self.max_act = 1000.0
         self.hidden_activation_function = SoftPlus
@@ -1498,48 +1584,39 @@ class BinaryRectRBM(BinaryBinaryRBM):
         return numx.clip(activation, 0.0, self.max_act)
 
     def _add_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def _remove_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def energy(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def unnormalized_log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def unnormalized_log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_v_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def _base_log_partition(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
 
@@ -1549,16 +1626,18 @@ class RectBinaryRBM(BinaryBinaryRBM):
 
     """
 
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data  structures. It is recommended to pass the \
              training data to initialize the network automatically.
 
@@ -1595,16 +1674,17 @@ class RectBinaryRBM(BinaryBinaryRBM):
          :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
          """
         # Call constructor of superclass
-        super(BinaryBinaryRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(BinaryBinaryRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
         self.temp = 0
         self.max_act = 1000.0
         self.visible_activation_function = SoftPlus
@@ -1653,71 +1733,61 @@ class RectBinaryRBM(BinaryBinaryRBM):
         return numx.clip(activation, 0.0, self.max_act)
 
     def _add_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def _remove_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def energy(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def unnormalized_log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def unnormalized_log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_v_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def _base_log_partition(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def _getbasebias(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
 
 class RectRectRBM(BinaryRectRBM):
-    """ Implementation of a centered Restricted Boltzmann machine with Noisy linear rectified visible and hidden units.
+    """Implementation of a centered Restricted Boltzmann machine with Noisy linear rectified visible and hidden units."""
 
-    """
-
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data  structures. It is recommended to pass the \
              training data to initialize the network automatically.
 
@@ -1754,16 +1824,17 @@ class RectRectRBM(BinaryRectRBM):
          :type dtype: numpy.float32 or numpy.float64 or numpy.longdouble
          """
         # Call constructor of superclass
-        super(BinaryRectRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(BinaryRectRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
         self.temp = 0
         self.max_act = 1000.0
         self.visible_activation_function = SoftPlus
@@ -1792,7 +1863,7 @@ class RectRectRBM(BinaryRectRBM):
         return activation
 
     def sample_v(self, v, beta=None, use_base_model=False):
-        """ Samples the visible variables from the conditional probabilities v given h.
+        """Samples the visible variables from the conditional probabilities v given h.
 
         :param v: Conditional probabilities of v given h.
         :type v: numpy array [batch size, input dim]
@@ -1814,22 +1885,24 @@ class RectRectRBM(BinaryRectRBM):
 
 
 class GaussianRectRBM(GaussianBinaryRBM):
-    """ Implementation of a centered Restricted Boltzmann machine with Gaussian visible and Noisy linear rectified
-        hidden units.
+    """Implementation of a centered Restricted Boltzmann machine with Gaussian visible and Noisy linear rectified
+    hidden units.
 
     """
 
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_sigma='AUTO',
-                 initial_visible_offsets='AUTO',
-                 initial_hidden_offsets='AUTO',
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_sigma="AUTO",
+        initial_visible_offsets="AUTO",
+        initial_hidden_offsets="AUTO",
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data structures. See comments for automatically \
             chosen values.
 
@@ -1865,17 +1938,18 @@ class GaussianRectRBM(GaussianBinaryRBM):
         """
 
         # Call constructor of superclass
-        super(GaussianRectRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_sigma=initial_sigma,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(GaussianRectRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_sigma=initial_sigma,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
         self.max_act = 10.0
         self.temp = 0
         self.hidden_activation_function = SoftPlus
@@ -1895,14 +1969,14 @@ class GaussianRectRBM(GaussianBinaryRBM):
         """
         temp_sigma = self.sigma
         if beta is not None:
-            temp_sigma = (self.sigma * beta + self._data_std * (1.0 - beta))
-        activation = self.bh + numx.dot((v - self.ov) / (temp_sigma ** 2), self.w)
+            temp_sigma = self.sigma * beta + self._data_std * (1.0 - beta)
+        activation = self.bh + numx.dot((v - self.ov) / (temp_sigma**2), self.w)
         self.temp = activation
         activation = self._hidden_post_activation(activation)
         return activation
 
     def sample_h(self, h, beta=None, use_base_model=False):
-        """ Samples the hidden variables from the conditional probabilities h given v.
+        """Samples the hidden variables from the conditional probabilities h given v.
 
         :param h: Conditional probabilities of h given v.
         :type h: numpy array [batch size, output dim]
@@ -1922,48 +1996,39 @@ class GaussianRectRBM(GaussianBinaryRBM):
         return numx.clip(activation, 0.0, self.max_act)
 
     def _add_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def _remove_visible_units(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def energy(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def unnormalized_log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def unnormalized_log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_v(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def log_probability_v_h(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
     def _base_log_partition(self):
-        """ Not available!
-        """
+        """Not available!"""
         raise Exception("Not implemented!")
 
 
@@ -1973,17 +2038,19 @@ class GaussianRectVarianceRBM(GaussianRectRBM):
 
     """
 
-    def __init__(self,
-                 number_visibles,
-                 number_hiddens,
-                 data=None,
-                 initial_weights='AUTO',
-                 initial_visible_bias='AUTO',
-                 initial_hidden_bias='AUTO',
-                 initial_sigma='AUTO',
-                 initial_visible_offsets=0.0,
-                 initial_hidden_offsets=0.0,
-                 dtype=numx.float64):
+    def __init__(
+        self,
+        number_visibles,
+        number_hiddens,
+        data=None,
+        initial_weights="AUTO",
+        initial_visible_bias="AUTO",
+        initial_hidden_bias="AUTO",
+        initial_sigma="AUTO",
+        initial_visible_offsets=0.0,
+        initial_hidden_offsets=0.0,
+        dtype=numx.float64,
+    ):
         """ This function initializes all necessary parameters and data structures. See comments for automatically \
             chosen values.
 
@@ -2018,20 +2085,21 @@ class GaussianRectVarianceRBM(GaussianRectRBM):
         :type dtype: numpy.float32, numpy.float64 and, numpy.longdouble
         """
         # Call constructor of superclass
-        super(GaussianRectVarianceRBM,
-              self).__init__(number_visibles=number_visibles,
-                             number_hiddens=number_hiddens,
-                             data=data,
-                             initial_weights=initial_weights,
-                             initial_visible_bias=initial_visible_bias,
-                             initial_hidden_bias=initial_hidden_bias,
-                             initial_sigma=initial_sigma,
-                             initial_visible_offsets=initial_visible_offsets,
-                             initial_hidden_offsets=initial_hidden_offsets,
-                             dtype=dtype)
+        super(GaussianRectVarianceRBM, self).__init__(
+            number_visibles=number_visibles,
+            number_hiddens=number_hiddens,
+            data=data,
+            initial_weights=initial_weights,
+            initial_visible_bias=initial_visible_bias,
+            initial_hidden_bias=initial_hidden_bias,
+            initial_sigma=initial_sigma,
+            initial_visible_offsets=initial_visible_offsets,
+            initial_hidden_offsets=initial_hidden_offsets,
+            dtype=dtype,
+        )
 
     def _calculate_sigma_gradient(self, v, h):
-        """ This function calculates the gradient for the variance of the RBM.
+        """This function calculates the gradient for the variance of the RBM.
 
         :param v: States of the visible variables.
         :type v: numpy arrays [batchsize, input dim]
@@ -2043,10 +2111,12 @@ class GaussianRectVarianceRBM(GaussianRectRBM):
         :rtype: list of numpy arrays [input dim,1]
         """
         var_diff = (v - self.bv - self.ov) ** 2
-        return (var_diff - 2.0 * (v - self.ov) * numx.dot(h, self.w.T)).sum(axis=0) / (self.sigma ** 3)
+        return (var_diff - 2.0 * (v - self.ov) * numx.dot(h, self.w.T)).sum(axis=0) / (
+            self.sigma**3
+        )
 
     def get_parameters(self):
-        """ This function returns all model parameters in a list.
+        """This function returns all model parameters in a list.
 
         :return: The parameter references in a list.
         :rtype: list
@@ -2066,5 +2136,9 @@ class GaussianRectVarianceRBM(GaussianRectRBM):
         :return: Gradients for all parameters.
         :rtype: numpy arrays (num parameters x [parameter.shape])
         """
-        return [self._calculate_weight_gradient(v, h), self._calculate_visible_bias_gradient(v),
-                self._calculate_hidden_bias_gradient(h), self._calculate_sigma_gradient(v, h)]
+        return [
+            self._calculate_weight_gradient(v, h),
+            self._calculate_visible_bias_gradient(v),
+            self._calculate_hidden_bias_gradient(h),
+            self._calculate_sigma_gradient(v, h),
+        ]

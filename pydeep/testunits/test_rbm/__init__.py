@@ -1,35 +1,36 @@
-""" Module initializer includes all sub-modules.
-        
-    :Version:
-        1.1.0
+"""Module initializer includes all sub-modules.
 
-    :Date:
-        29.03.2017
+:Version:
+    1.1.0
 
-    :Author:
-        Jan Melchior
+:Date:
+    29.03.2017
 
-    :Contact:
-        JanMelchior@gmx.de
+:Author:
+    Jan Melchior
 
-    :License:
+:Contact:
+    JanMelchior@gmx.de
 
-        Copyright (C) 2017 Jan Melchior
+:License:
 
-        This file is part of the Python library PyDeep.
+    Copyright (C) 2017 Jan Melchior
 
-        PyDeep is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
+    This file is part of the Python library PyDeep.
 
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
+    PyDeep is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
 __all__ = ["test_dbn", "test_estimator", "test_model", "test_sampler", "test_trainer"]
