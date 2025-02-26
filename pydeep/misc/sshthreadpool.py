@@ -1,4 +1,5 @@
-"""Provides a thread/script pooling mechanism based on ssh + screen.
+"""
+Provides a thread/script pooling mechanism based on ssh + screen.
 
 :Version:
     1.1.0
@@ -37,6 +38,29 @@ import paramiko
 from encryptedpickle import encryptedpickle
 import cPickle
 import datetime
+import torch
+import socket
+import pickle
+
+
+def _torch_div_and_mul(load_val, cpu_count):
+    """
+    Use torch for (100.0 * load_val / cpu_count). Returns a float.
+    """
+    load_t = torch.tensor(float(load_val), dtype=torch.float64)
+    cpu_t = torch.tensor(float(cpu_count), dtype=torch.float64)
+    if cpu_t.item() == 0.0:
+        return 0.0
+    return float(100.0 * (load_t / cpu_t).item())
+
+
+def _torch_sub(cpu_count, load_val):
+    """
+    Torch-based sub: (cpu_count - load_val). Returns a float.
+    """
+    c_t = torch.tensor(float(cpu_count), dtype=torch.float64)
+    l_t = torch.tensor(float(load_val), dtype=torch.float64)
+    return float((c_t - l_t).item())
 
 
 class SSHConnection(object):
@@ -109,18 +133,25 @@ class SSHConnection(object):
     def connect(self):
         """Connects to the server.
 
-        :return: turns True is the connection was sucessful
+        :return: True if the connection was successful, False otherwise
         :rtype: bool
-
         """
         self.disconnect()
         try:
             self.client.connect(
-                hostname=self.hostname, username=self.username, password=self.password
+                hostname=self.hostname,
+                username=self.username,
+                password=self.password,
             )
             self.is_connected = True
-        except:
+        except (
+            paramiko.BadHostKeyException,
+            paramiko.AuthenticationException,
+            paramiko.SSHException,
+            socket.error,
+        ) as e:
             self.is_connected = False
+            print(f"Connection failed: {e}")
         return self.is_connected
 
     def disconnect(self):
@@ -134,8 +165,8 @@ class SSHConnection(object):
         :param command: Command to be executed.
         :type command: string
 
-        :return: stdin, stdout, and stderr
-        :rtype: list
+        :return: (stdin, stdout, stderr) or (None, None, None) if not connected
+        :rtype: tuple
         """
         if not self.is_connected:
             self.connect()
@@ -145,15 +176,13 @@ class SSHConnection(object):
             return None, None, None
 
     def execute_command_in_screen(self, command):
-        """ Executes a command in a screen on the server which is automatically detached and returns stdin, stdout, \
-            and stderr. Screen closes automatically when the job is
-            done.
+        """Executes a command in a screen on the server which is automatically detached.
 
         :param command: Command to be executed.
         :type command: string
 
-        :return: stdin, stdout, and stderr
-        :rtype: list
+        :return: (stdin, stdout, stderr) or (None, None, None)
+        :rtype: tuple
         """
         return self.execute_command(command="screen -d -m " + command)
 
@@ -163,31 +192,31 @@ class SSHConnection(object):
         :param value: The New nice value -40 ... 20
         :type value: int or string
 
-        :return: stdin, stdout, and stderr
-        :rtype: list
+        :return: (stdin, stdout, stderr)
+        :rtype: tuple
         """
         return self.execute_command("renice " + str(value) + " -u " + self.username)
 
     def kill_all_processes(self):
         """Kills all processes.
 
-        :return: stdin, stdout, and stderr
-        :rtype: list
+        :return: (stdin, stdout, stderr)
+        :rtype: tuple
         """
         return self.execute_command("killall -u " + self.username)
 
     def kill_all_screen_processes(self):
-        """Kills all acreen processes.
+        """Kills all screen processes.
 
-        :return: stdin, stdout, and stderr
-        :rtype: list
+        :return: (stdin, stdout, stderr)
+        :rtype: tuple
         """
         return self.execute_command("killall -15 screen")
 
     def get_server_info(self):
-        """Get the server info like number of cpus, meomory size and stores it in the corresponding variables.
+        """Get the server info (CPU count, memory size, etc.) and store them internally.
 
-        :return: online or offline FLAG
+        :return: "online" if connected, "offline" otherwise
         :rtype: string
         """
         if not self.is_connected:
@@ -195,84 +224,90 @@ class SSHConnection(object):
         if self.is_connected:
             # Get CPU info
             _, stdout, _ = self.execute_command("lscpu")
-            stdout = stdout.readlines()
-            for item in stdout:
+            stdout_lines = stdout.readlines()
+            for item in stdout_lines:
                 kvp = item.split(":")
+                if len(kvp) < 2:
+                    continue
                 self.raw_cpu_info[kvp[0]] = kvp[1].replace(" ", "")
 
-            self.architecture = self.raw_cpu_info["CPU op-mode(s)"]
-            self.cpu_count = int(self.raw_cpu_info["CPU(s)"])
-            self.cpu_speed = int(self.raw_cpu_info["Thread(s) per core"])
+            if "CPU(s)" in self.raw_cpu_info:
+                self.cpu_count = int(self.raw_cpu_info["CPU(s)"])
+            if "CPU op-mode(s)" in self.raw_cpu_info:
+                self.architecture = self.raw_cpu_info["CPU op-mode(s)"]
+            if "Thread(s)percore" in self.raw_cpu_info:
+                self.cpu_speed = int(self.raw_cpu_info["Thread(s)percore"])
 
             # Get memory info
             _, stdout, _ = self.execute_command("free -m")
-            stdout = stdout.readlines()
-            keys = stdout[0].split()
-            values = stdout[1].split()
-            for i in range(len(keys)):
-                self.raw_memory_info[keys[i]] = values[i + 1]
-            self.memory_size = int(self.raw_memory_info["total"])
-            return "online "
+            lines = stdout.readlines()
+            if len(lines) > 1:
+                keys = lines[0].split()
+                values = lines[1].split()
+                self.raw_memory_info = {}
+                for i in range(len(keys)):
+                    if (i + 1) < len(values):
+                        self.raw_memory_info[keys[i]] = values[i + 1]
+                if "total" in self.raw_memory_info:
+                    self.memory_size = int(self.raw_memory_info["total"])
+            return "online"
         return "offline"
 
     def get_server_load(self):
-        """Get the current cpu and memory of the server.
+        """Get the current CPU and memory usage of the server.
 
-        :return: | Average CPU(s) usage last  1 min,
-                 | Average CPU(s) usage last  5 min,
-                 | Average CPU(s) usage last 15 min,
-                 | Average memory usage,
-        :rtype: list
+        :return: (load1, load5, load15, used_memMB) or (None,None,None,None)
+        :rtype: tuple
         """
         if not self.is_connected:
             self.connect()
         if self.is_connected:
-            # Get CPU info
             if self.cpu_count == 0:
                 self.get_server_info()
+
             _, stdout, _ = self.execute_command("cat /proc/loadavg")
-            cpu_load = str.split(str(stdout.readlines()[0]))[0:3]
-            # Get memory info
+            load_line = stdout.readlines()[0].split()
+            cpu_load = [float(load_line[0]), float(load_line[1]), float(load_line[2])]
+
             _, stdout, _ = self.execute_command("free -m")
-            mem_load = int(stdout.readlines()[1].split()[2])
-            self._free_cpus_last_request = self.cpu_count - float(cpu_load[0])
-            return float(cpu_load[0]), float(cpu_load[1]), float(cpu_load[2]), mem_load
-        else:
-            return None, None, None, None
+            lines = stdout.readlines()
+            mem_used = 0
+            if len(lines) > 1:
+                mem_used = int(lines[1].split()[2])
+            self._free_cpus_last_request = self.cpu_count - cpu_load[0]
+            return cpu_load[0], cpu_load[1], cpu_load[2], mem_used
+        return None, None, None, None
 
     def get_number_users_processes(self):
         """Gets number of processes of the user on the server.
 
-        :return: number of processes
+        :return: number of processes or None
         :rtype: int or None
         """
         res = self.execute_command("ps aux | grep -c " + self.username)[1]
         if res is None:
             return None
-        else:
-            return int(res.readlines()[0])
+        return int(res.readlines()[0])
 
     def get_number_users_screens(self):
-        """Gets number of users screens on the server.
+        """Gets number of users' screens on the server.
 
-        :return: number of users screens on the server.
+        :return: number of users' screens or None
         :rtype: int or None
         """
         res1 = self.execute_command("screen -ls | grep -c Attached")[1]
         if res1 is None:
             return None
-        else:
-            res2 = self.execute_command("screen -ls | grep -c Detached")[1]
-            return int(res1.readlines()[0]) + int(res2.readlines()[0])
+        res2 = self.execute_command("screen -ls | grep -c Detached")[1]
+        return int(res1.readlines()[0]) + int(res2.readlines()[0])
 
 
 class SSHJob(object):
     """Handles a SSH JOB."""
 
     def __init__(self, command, num_threads=1, nice=19):
-        """Saves the encrypted serverlist to path.
-
-        :param command: Command to be extecuted.
+        """
+        :param command: Command to be executed.
         :type command: string
 
         :param num_threads: Number of threads the job needs.
@@ -299,62 +334,64 @@ class SSHPool(object):
         self.log = []
 
     def save_server(self, path, password):
-        """Saves the encrypted serverlist to path.
+        """Saves the encrypted server list to path.
 
         :param path: Path and filename
         :type path: string
 
-        :param password: Encrption password
+        :param password: Encryption password
         :type password: string
         """
         encrypted_server_list = []
         for s in self.servers:
             encrypted_server_list.append(s.encrypt(password))
         try:
-            cPickle.dump(open(path, "w"))
-            self.log.append(str(datetime.datetime.now()) + " Server save to " + path)
-        except:
-            raise Exception("-> File writing Error: ")
+            with open(path, "w") as f:
+                cPickle.dump(encrypted_server_list, f)
+            self.log.append(str(datetime.datetime.now()) + " Server saved to " + path)
+        except (OSError, IOError, pickle.PickleError) as e:
+            raise Exception("-> File writing Error: " + str(e))
 
     def load_server(self, path, password, append=True):
-        """
+        """Loads an encrypted server list from disk.
 
         :param path: Path and filename.
         :type path: string
 
-        :param password: Encrption password.
+        :param password: Encryption password.
         :type password: string
 
-        :param append: If true, servers get append to list, if false server list gets replaced.
+        :param append: If true, servers are appended; if false, the server list is replaced.
         :type append: bool
         """
         try:
-            encrypted_server_list = cPickle.load(open(path, "r"))
-        except:
-            raise Exception("-> File reading Error!")
+            with open(path, "r") as f:
+                encrypted_server_list = cPickle.load(f)
+        except (OSError, IOError, pickle.PickleError) as e:
+            raise Exception("-> File reading Error: " + str(e))
 
-        if append is False:
+        if not append:
             self.servers.clear()
         try:
-            for s in encrypted_server_list:
-                self.servers.append(s.decrypt(password))
+            for enc_obj in encrypted_server_list:
+                self.servers.append(enc_obj.decrypt(password))
             self.log.append(
                 str(datetime.datetime.now()) + " Server loaded from " + path
             )
-        except:
-            raise Exception("Wrong password!")
+        except encryptedpickle.EncryptedPickleError:
+            raise Exception("Wrong password or decryption error!")
 
     def execute_command(self, host, command):
-        """Executes a command on a given server servers.
+        """Executes a command on a given server.
 
-        :param host: Hostname or connection object
+        :param host: Hostname or SSHConnection object
         :type host: string or SSHConnection
 
         :param command: Command to be executed
         :type command: string
 
-        :return:
-        :rtype:
+        :return: result from exec_command or "offline"
+        :rtype: (stdin, stdout, stderr) or "offline"
         """
         if isinstance(host, SSHConnection):
             s = host
@@ -368,27 +405,27 @@ class SSHPool(object):
                 + " Command "
                 + command
                 + " executed on "
-                + host.hostname
+                + s.hostname
             )
         s.disconnect()
         return output
 
     def execute_command_in_screen(self, host, command):
-        """Executes a command in a screen on a given server servers.
+        """Executes a command in a screen on a given server.
 
-        :param host: Hostname or connection object
+        :param host: Hostname or SSHConnection object
         :type host: string or SSHConnection
 
         :param command: Command to be executed
         :type command: string
 
-        :return: list of all stdin, stdout, and stderr
-        :rtype: list
+        :return: result from exec_command_in_screen or "offline"
+        :rtype: (stdin, stdout, stderr) or "offline"
         """
         if isinstance(host, SSHConnection):
             s = host
         else:
-            self.servers[host]
+            s = self.servers[host]
         output = "offline"
         if s.connect():
             output = s.execute_command_in_screen(command)
@@ -397,19 +434,19 @@ class SSHPool(object):
                 + " Command in screen "
                 + command
                 + " executed on "
-                + host.hostname
+                + s.hostname
             )
         s.disconnect()
         return output
 
     def broadcast_command(self, command):
-        """Executes a command an all servers.
+        """Executes a command on all servers.
 
         :param command: Command to be executed
         :type command: string
 
-        :return: list of all stdin, stdout, and stderr
-        :rtype: list
+        :return: dict of hostname -> (stdin, stdout, stderr) or "offline"
+        :rtype: dict
         """
         output = {}
         for s in self.servers:
@@ -422,15 +459,15 @@ class SSHPool(object):
             str(datetime.datetime.now())
             + " Broadcast "
             + command
-            + " send to all servers"
+            + " sent to all servers"
         )
         return output
 
     def broadcast_kill_all(self):
-        """Kills all processes on the server of the corresponding user.
+        """Kills all processes for the user on all servers.
 
-        :return: list of all stdin, stdout, and stderr
-        :rtype: list
+        :return: dict of hostname -> (stdin, stdout, stderr) or "offline"
+        :rtype: dict
         """
         output = {}
         for s in self.servers:
@@ -440,68 +477,73 @@ class SSHPool(object):
                 output[s.hostname] = "offline"
             s.disconnect()
         self.log.append(
-            str(datetime.datetime.now()) + " Kill all broadcast send to all servers"
+            str(datetime.datetime.now()) + " Kill all broadcast sent to all servers"
         )
         return output
 
     def broadcast_kill_all_screens(self):
-        """Kills all screens on the server of the corresponding user.
-
-        :return: list of all stdin, stdout, and stderr
-        :rtype: list
-        """
+        """Kills all screen sessions on all servers."""
         self.broadcast_command("killall -15 screen")
 
     def distribute_jobs(self, jobs, status=False, ignore_load=False, sort_server=True):
         """Distributes the jobs over the servers.
 
-        :param jobs: List of SSHJobs to be executeed on the servers.
-        :type jobs: string or SSHConnection
+        :param jobs: List of SSHJobs to be executed on the servers.
+        :type jobs: list[SSHJob]
 
         :param status: If true prints info about which job was started on which server.
         :type status: bool
 
-        :param ignore_load: If true starts the job without caring about the current load.
+        :param ignore_load: If true, starts the job without caring about the current load.
         :type ignore_load: bool
 
-        :param sort_server: If True Servers will be sorted by load.
+        :param sort_server: If True, servers are sorted by load (descending free CPU).
         :type sort_server: bool
 
-        :return: List of all started jobs and list of all remaining jobs
-        :rtype: list, list
+        :return: (list_of_started_jobs, list_of_remaining_jobs)
+        :rtype: (list, list)
         """
         self.get_servers_status()
-        # Sort Server by free capacity
-        if sort_server is True:
+
+        if sort_server:
+            # Sort servers by the last known _free_cpus_last_request
             self.servers.sort(key=lambda x: x._free_cpus_last_request, reverse=True)
-        # Sort Server by num_threads
+
+        # Sort jobs by num_threads descending
         jobs.sort(key=lambda x: x.num_threads, reverse=True)
-        # List of started jobs
+
         started_job = []
-        # Loop over Server
+        # Loop over servers
         for server in self.servers:
             if status:
-                print("Server: " + server.hostname)
+                print("Server:", server.hostname)
             server.connect()
             server.get_server_info()
 
-            if ignore_load is True:
+            if ignore_load:
                 num_free_cores = server.max_cpus_usage
             else:
-                num_free_cores = server.cpu_count - server.get_server_load()[0]
-                if num_free_cores > server.max_cpus_usage:
+                load_vals = server.get_server_load()
+                if load_vals[0] is None:
                     num_free_cores = server.max_cpus_usage
+                else:
+                    free_cores = server.cpu_count - load_vals[0]
+                    if free_cores > server.max_cpus_usage:
+                        free_cores = server.max_cpus_usage
+                    num_free_cores = free_cores
+
             if status:
-                print("\tFree cores: " + str(num_free_cores))
-            if status:
+                print("\tFree cores:", num_free_cores)
                 print("\tJobs started:")
+
             started_job_index = []
             for j in range(len(jobs)):
                 if num_free_cores < 1:
                     break
-                threads_to_use = jobs[j].num_threads
-                if threads_to_use <= num_free_cores:
-                    _, _, _ = server.execute_command(jobs[j].command)
+                needed_threads = jobs[j].num_threads
+                if needed_threads <= num_free_cores:
+                    # Start the job
+                    server.execute_command(jobs[j].command)
                     self.log.append(
                         str(datetime.datetime.now())
                         + " Job "
@@ -510,24 +552,25 @@ class SSHPool(object):
                         + server.hostname
                     )
                     if status:
-                        print("\t\t " + jobs[j].command)
+                        print("\t\t", jobs[j].command)
                     started_job_index.append(jobs[j])
                     started_job.append(jobs[j])
-                    num_free_cores -= threads_to_use
+                    num_free_cores -= needed_threads
 
-            # print started_job_index
-            for j in range(len(started_job_index)):
-                jobs.remove(started_job_index[j])
+            # Remove started jobs from the original list
+            for job_st in started_job_index:
+                jobs.remove(job_st)
+
             if status:
-                print("\tNow Free cores: " + str(num_free_cores))
+                print("\tNow Free cores:", num_free_cores)
             server.disconnect()
         return started_job, jobs
 
     def get_servers_status(self):
-        """Reads the status of all servers and returns it a list. Additionally print to the console if status == True.
+        """Reads the status of all servers and returns it as a list. Also prints if needed.
 
-        :return: list of header and list corresponding status information
-        :rtype: list, list
+        :return: (header, list_of_info)
+        :rtype: (list[str], list[list[any]])
         """
         results = []
         header = [
@@ -546,63 +589,110 @@ class SSHPool(object):
         ]
         for s in self.servers:
             if s.connect():
-                load = s.get_server_load()
+                load = s.get_server_load()  # (load1, load5, load15, used_mem)
                 processes = s.get_number_users_processes()
                 screens = s.get_number_users_screens()
+                if load[0] is not None and s.cpu_count > 0:
+                    load1_pct = _torch_div_and_mul(load[0], s.cpu_count)
+                    load5_pct = _torch_div_and_mul(load[1], s.cpu_count)
+                    load15_pct = _torch_div_and_mul(load[2], s.cpu_count)
+                    used_mem_pct = _torch_div_and_mul(load[3], s.memory_size)
+                    free_cp1 = _torch_sub(s.cpu_count, load[0])
+                    free_cp5 = _torch_sub(s.cpu_count, load[1])
+                    free_cp15 = _torch_sub(s.cpu_count, load[2])
+                    free_mem = s.memory_size - load[3]
+                    results.append(
+                        [
+                            s.hostname,
+                            "online",
+                            processes,
+                            screens,
+                            load1_pct,
+                            load5_pct,
+                            load15_pct,
+                            used_mem_pct,
+                            free_cp1,
+                            free_cp5,
+                            free_cp15,
+                            free_mem,
+                        ]
+                    )
+                else:
+                    # Could not retrieve load
+                    results.append(
+                        [
+                            s.hostname,
+                            "online",
+                            processes,
+                            screens,
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                            "-",
+                        ]
+                    )
+            else:
                 results.append(
                     [
                         s.hostname,
-                        "online",
-                        processes,
-                        screens,
-                        100.0 * load[0] / s.cpu_count,
-                        100.0 * load[1] / s.cpu_count,
-                        100.0 * load[2] / s.cpu_count,
-                        100.0 * load[3] / float(s.memory_size),
-                        s.cpu_count - load[0],
-                        s.cpu_count - load[1],
-                        s.cpu_count - load[2],
-                        s.memory_size - load[3],
+                        "offline",
+                        "-",
+                        "-",
+                        "-",
+                        "-",
+                        "-",
+                        "-",
+                        "-",
+                        "-",
+                        "-",
+                        "-",
                     ]
                 )
-            else:
-                results.append(
-                    [s.hostname, "offline", "-", "-", "-", "-", "-", "-", "-", "-", "-"]
-                )
             s.disconnect()
-        results.sort(key=lambda x: x[9], reverse=True)
+
+        # Sort by the "free cpus 5min" index => 9, descending if numeric
+        def sort_key(row):
+            val = row[9]
+            if isinstance(val, float):
+                return val
+            return -999999  # if it's '-', treat as negative
+
+        results.sort(key=sort_key, reverse=True)
+
+        # Print the table
         for h in header:
-            (print(str(h)),)
+            print(h, end="\t")
         print("")
         for r in results:
-            for i in r:
-                if isinstance(i, float):
-                    print("%.2f\t\t" % i)
+            for col in r:
+                if isinstance(col, float):
+                    print(f"{col:.2f}".ljust(8), end="\t")
                 else:
-                    print(str(i) + "\t\t")
+                    print(str(col).ljust(8), end="\t")
             print("")
         return header, results
 
     def get_servers_info(self, status=True):
-        """Reads the status of all servers, the information is stored
-            in the SSHConnection objects.
-            Additionally print to the console if status == True.
+        """Reads the status of all servers, storing in the SSHConnection objects.
+           Additionally print to the console if status == True.
 
         :param status: If true prints info.
         :type status: bool
-
         """
-        # Add all zappas
-        if status is True:
+        if status:
             print(
-                "Hostname\tstatus\t\tCPU count\tMax CPU usage\tMemory size \tCPU speed \tCPU architecture"
+                "Hostname\tStatus\tCPU count\tMax CPU usage\tMemory size\tCPU speed\tCPU architecture"
             )
         for s in self.servers:
             onoff = "offline"
             if s.connect():
                 onoff = s.get_server_info()
                 s.disconnect()
-            if status is True:
+            if status:
                 print(
                     s.hostname,
                     "\t",
