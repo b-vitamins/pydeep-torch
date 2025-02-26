@@ -1,4 +1,7 @@
-"""This module provides implementations for corrupting the training data.
+"""
+This module provides implementations for corrupting the training data,
+now refactored to use PyTorch internally for array manipulations. We
+still use NumPy's random calls to preserve the original test invariances.
 
 :Implemented:
     - Identity
@@ -48,6 +51,12 @@
 """
 
 import numpy as numx
+import torch
+
+
+def _ensure_torch_double(arr):
+    """Convert arr (NumPy array) to torch double tensor."""
+    return torch.as_tensor(arr, dtype=torch.float64)
 
 
 class Identity(object):
@@ -90,14 +99,16 @@ class AdditiveGaussNoise(object):
         :return: Corrupted data.
         :rtype: numpy array [num samples, layer dim]
         """
-        return data + self.mean + numx.random.standard_normal(data.shape) * self.std
+        # Use NumPy random for invariance
+        noise = numx.random.standard_normal(data.shape) * self.std
+        return data + self.mean + noise
 
 
 class MultiGaussNoise(object):
     """An object that corrupts data by multiplying Gauss noise."""
 
     def __init__(self, mean, std):
-        """Corruptor contructor.
+        """Corruptor constructor.
 
         :param mean: Constant the data is shifted
         :type mean: float
@@ -117,7 +128,9 @@ class MultiGaussNoise(object):
         :return: Corrupted data.
         :rtype: numpy array [num samples, layer dim]
         """
-        return data * (self.mean + numx.random.standard_normal(data.shape) * self.std)
+        # Again, NumPy random to preserve test seeds
+        noise = self.mean + numx.random.standard_normal(data.shape) * self.std
+        return data * noise
 
 
 class SamplingBinary(object):
@@ -133,14 +146,16 @@ class SamplingBinary(object):
         :return: Corrupted data.
         :rtype: numpy array [num samples, layer dim]
         """
-        return data > numx.random.random(data.shape)
+        # data > rand => True/False => 1/0
+        rand_mat = numx.random.random(data.shape)
+        return (data > rand_mat).astype(numx.bool_)
 
 
 class BinaryNoise(object):
     """Binary Noise."""
 
     def __init__(self, percentage):
-        """Corruptor contructor.
+        """Corruptor constructor.
 
         :param percentage: Percent of random chosen pixel/states.
         :type percentage: float [0,1]
@@ -158,14 +173,16 @@ class BinaryNoise(object):
         :return: Corrupted data.
         :rtype: numpy array [num samples, layer dim]
         """
-        return numx.abs(data - numx.random.binomial(1, self.percentage, data.shape))
+        # Generate binomial(1, self.percentage), then do abs(data - rand_binomial)
+        noise = numx.random.binomial(1, self.percentage, data.shape)
+        return numx.abs(data - noise)
 
 
 class Dropout(object):
     """Dropout (zero out) corruption."""
 
     def __init__(self, dropout_percentage=0.2):
-        """Corruptor contructor.
+        """Corruptor constructor.
 
         :param dropout_percentage: Dropout percentage
         :type dropout_percentage: float
@@ -181,20 +198,20 @@ class Dropout(object):
         :return: Corrupted data.
         :rtype: numpy array [num samples, layer dim]
         """
-        return (
-            data
-            * numx.random.binomial(1, 1.0 - self.dropout_percentage, data.shape)
-            / (1.0 - self.dropout_percentage)
-        )
+        # NumPy random for mask
+        keep_prob = 1.0 - self.dropout_percentage
+        mask = numx.random.binomial(1, keep_prob, data.shape)
+        # Scale by 1/(1-dropout) to preserve expected value
+        return data * mask / (keep_prob)
 
 
 class RandomPermutation(object):
     """RandomPermutation corruption, a fix number of units change their activation values."""
 
     def __init__(self, permutation_percentage=0.2):
-        """Corruptor contructor.
+        """Corruptor constructor.
 
-        :param permutation_percentage: permutation_percentage: Percentage of states to permute
+        :param permutation_percentage: Percentage of states to permute
         :type permutation_percentage: float
         """
         self.permutation_percentage = permutation_percentage
@@ -209,14 +226,13 @@ class RandomPermutation(object):
         :rtype: numpy array [num samples, layer dim]
         """
         result = numx.copy(data)
+        # total columns = data.shape[1]
+        # number of pairs to swap = num_switches
         num_switches = numx.int32(data.shape[1] * self.permutation_percentage * 0.5)
         for d in range(data.shape[0]):
-            # Proof of concept
-            # setA = numx.random.randint(0, pattern.shape[1], num_states_to_change / 2)
-            # setB = numx.random.randint(0, pattern.shape[1], num_states_to_change / 2)
-            # result[d][setA] = pattern[d][setB]
-            # result[d][setB] = pattern[d][setA]
+            # produce a random permutation of columns
             tempset = numx.random.permutation(numx.arange(data.shape[1]))
+            # swap the first num_switches with the next num_switches
             result[d][tempset[0:num_switches]] = data[d][
                 tempset[num_switches : 2 * num_switches]
             ]
@@ -228,41 +244,6 @@ class RandomPermutation(object):
 
 class KeepKWinner(object):
     """Implements K Winner stay. Keep the k max values and set the rest to 0."""
-
-    def __init__(self, k=10, axis=0):
-        """Corruptor contructor.
-
-        :param k: Keep the k max values and set the rest to 0.
-        :type k: int
-
-        :param axis: Axis =0 across min batch, axis = 1 across hidden units
-        :type axis: int
-        """
-        self.k = k
-        self.axis = axis
-
-    def corrupt(self, data):
-        """The function corrupts the data.
-
-        :param data: Input of the layer.
-        :type data: numpy array [num samples, layer dim]
-
-        :return: Corrupted data.
-        :rtype: numpy array [num samples, layer dim]
-        """
-        data = data
-        if self.axis == 0:
-            return data * (
-                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[-self.k, :])
-            )
-        else:
-            return data * (
-                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[:, -self.k]).T
-            )
-
-
-class KWinnerTakesAll(object):
-    """Implements K Winner takes all. Keep the k max values and set the rest to 0."""
 
     def __init__(self, k=10, axis=0):
         """Corruptor constructor.
@@ -285,12 +266,70 @@ class KWinnerTakesAll(object):
         :return: Corrupted data.
         :rtype: numpy array [num samples, layer dim]
         """
-        data = data
+        data_t = _ensure_torch_double(data)
         if self.axis == 0:
-            return 1.0 * (
-                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[-self.k, :])
-            )
+            # sort each column, select threshold in row dimension
+            sorted_t, _ = torch.sort(data_t, dim=0)
+            # threshold => row (rows - k)
+            threshold = sorted_t[sorted_t.shape[0] - self.k, :]
+            # mask => data_t >= threshold (broadcast across rows)
+            mask = data_t >= threshold
+            out_t = data_t * mask
         else:
-            return 1.0 * (
-                data >= numx.atleast_2d(numx.sort(data, axis=self.axis)[:, -self.k]).T
-            )
+            # axis=1 => sort each row. We'll do the same trick by transposing
+            # or replicate the logic from old code: sort(data, axis=1) => shape NxD
+            # threshold => .[:, -k], shape (N,)
+            # we broadcast it over columns => data >= threshold
+            # or we can transpose
+            sorted_t, _ = torch.sort(data_t, dim=1)
+            # The threshold is the item in column (columns - k)
+            # => shape (N,)
+            row_indices = torch.arange(sorted_t.shape[0], dtype=torch.long)
+            threshold = sorted_t[row_indices, sorted_t.shape[1] - self.k]
+            # We want data_t >= threshold row-wise
+            # broadcast => we unsqueeze threshold
+            mask = data_t >= threshold.unsqueeze(1)
+            out_t = data_t * mask
+
+        return out_t.cpu().numpy()
+
+
+class KWinnerTakesAll(object):
+    """Implements K Winner takes all. Keep the k max values => 1, rest => 0."""
+
+    def __init__(self, k=10, axis=0):
+        """Corruptor constructor.
+
+        :param k: Keep the k max values and set the rest to 0.
+        :type k: int
+
+        :param axis: Axis =0 across min batch, axis = 1 across hidden units
+        :type axis: int
+        """
+        self.k = k
+        self.axis = axis
+
+    def corrupt(self, data):
+        """The function corrupts the data.
+
+        :param data: Input of the layer.
+        :type data: numpy array [num samples, layer dim]
+
+        :return: Corrupted data.
+        :rtype: numpy array [num samples, layer dim]
+        """
+        data_t = _ensure_torch_double(data)
+        if self.axis == 0:
+            # similar to KeepKWinner but we set to 1.0 instead of data
+            sorted_t, _ = torch.sort(data_t, dim=0)
+            threshold = sorted_t[sorted_t.shape[0] - self.k, :]
+            mask = data_t >= threshold
+            out_t = mask.to(torch.float64)  # => 1.0 or 0.0
+        else:
+            sorted_t, _ = torch.sort(data_t, dim=1)
+            row_indices = torch.arange(sorted_t.shape[0], dtype=torch.long)
+            threshold = sorted_t[row_indices, sorted_t.shape[1] - self.k]
+            mask = data_t >= threshold.unsqueeze(1)
+            out_t = mask.to(torch.float64)
+
+        return out_t.cpu().numpy()
