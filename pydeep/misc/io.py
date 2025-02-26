@@ -1,4 +1,5 @@
-"""This class contains methods to read and write data.
+"""
+This class contains methods to read and write data.
 
 :Implemented:
     - Save/Load arbitrary objects.
@@ -54,12 +55,58 @@
 import pickle
 import os
 import gzip
-import numpy as numx
+import numpy as np
 import scipy.io
 import scipy.misc
 import requests
 import pydeep.misc.measuring as mea
 from pydeep.base.numpyextension import get_binary_label
+import torch
+
+
+def _torch_as_np_double(data):
+    """
+    Helper to convert input 'data' to a torch double tensor
+    and then back to a NumPy float64 array. Ensures consistent
+    numeric casting while preserving the shape.
+    """
+    return torch.as_tensor(data, dtype=torch.float64).cpu().numpy()
+
+
+def _torch_grayscale(rgb_arr):
+    """
+    For a Nx3072 array, interpret it as Nx(3×1024) [R, G, B]
+    and convert to grayscale => 0.3R + 0.59G + 0.11B.
+    Returns a Nx1024 array as float64 NumPy.
+    """
+    t = torch.as_tensor(rgb_arr, dtype=torch.float64)  # shape [N,3072]
+    # R => [:,0:1024], G => [:,1024:2048], B => [:,2048:3072]
+    r = t[:, 0:1024]
+    g = t[:, 1024:2048]
+    b = t[:, 2048:3072]
+    gray_t = 0.3 * r + 0.59 * g + 0.11 * b
+    return gray_t.cpu().numpy()
+
+
+def _torch_rotate_2d_np(array2d, angle_degrees):
+    """
+    Equivalent to scipy.misc.imread flatten,
+    or for small images, we might want to replicate the old code's rotate
+    from numpyextension. But here we keep the original approach:
+    We'll do no PyTorch rotate because that won't match SciPy's exact numeric.
+
+    This helper is not used by default except in olivetti for orientation.
+    We keep the old code that uses 'rotate' from numpyextension if needed.
+
+    If you do want to re-implement a Torch-based rotation, be aware it might
+    differ slightly from SciPy's rotate. We'll skip that for now to ensure test
+    invariance.
+    """
+    # We *could* try a Torch-based approach, but that may not be numerically identical
+    # to the old SciPy approach. The existing code uses:
+    # from pydeep.base.numpyextension import rotate
+    # We'll just keep that call for orientation correction to preserve tests.
+    pass
 
 
 def save_object(obj, path, info=True, compressed=True):
@@ -80,7 +127,7 @@ def save_object(obj, path, info=True, compressed=True):
     :return:
     :rtype:
     """
-    if info is True:
+    if info:
         print("-> Saving File  ... ")
     try:
         if compressed:
@@ -90,7 +137,7 @@ def save_object(obj, path, info=True, compressed=True):
         else:
             file_path = open(path, "w")
             pickle.dump(obj, file_path)
-        if info is True:
+        if info:
             print("-> done!")
     except:
         raise Exception("-> File writing Error: ")
@@ -127,24 +174,24 @@ def load_object(path, info=True, compressed=True):
     :rtype: object
     """
     if not os.path.isfile(path):
-        if info is True:
+        if info:
             print("-> File not existing: " + path)
         return None
     else:
-        if info is True:
+        if info:
             print("-> Loading File  ... ")
         try:
             if compressed is True:
                 fp = gzip.open(path, "rb")
                 obj = pickle.load(fp)
                 fp.close()
-                if info is True:
+                if info:
                     print("-> done!")
                 return obj
             else:
                 file_path = open(path, "r")
                 obj = pickle.load(file_path)
-                if info is True:
+                if info:
                     print("-> done!")
                 return obj
         except:
@@ -163,6 +210,7 @@ def load_image(path, grayscale=False):
     :return: Loaded image.
     :rtype: numpy array [width, height]
     """
+    # We keep the old scipy.misc.imread for test invariance
     return scipy.misc.imread(path, flatten=grayscale)
 
 
@@ -181,8 +229,8 @@ def download_file(url, path, buffer_size=1024**2):
     print("-> Downloading " + url + " to " + path)
     with open(path, "wb") as handle:
         url_stream = requests.get(url, stream=True)
-        file_size = numx.float64(url_stream.headers.get("content-length"))
-        num_steps = numx.int32(file_size / buffer_size)
+        file_size = np.float64(url_stream.headers.get("content-length"))
+        num_steps = np.int32(file_size / buffer_size)
         if not url_stream.ok:
             raise Exception("-> Connection lost")
         i = 0
@@ -232,21 +280,22 @@ def load_mnist(path, binary=False):
         print("-> done!")
     except:
         raise Exception("-> File reading Error: ")
+
     if binary:
-        train_set = numx.where(train_set[0] < 0.5, 0, 1)
-        valid_set = numx.where(valid_set[0] < 0.5, 0, 1)
-        test_set = numx.where(test_set[0] < 0.5, 0, 1)
-        train_set = numx.array(train_set, dtype=numx.int)
-        valid_set = numx.array(valid_set, dtype=numx.int)
-        test_set = numx.array(test_set, dtype=numx.int)
+        train_x = np.where(train_set[0] < 0.5, 0, 1).astype(np.int)
+        valid_x = np.where(valid_set[0] < 0.5, 0, 1).astype(np.int)
+        test_x = np.where(test_set[0] < 0.5, 0, 1).astype(np.int)
     else:
-        train_set = numx.array(train_set[0], dtype=numx.double)
-        valid_set = numx.array(valid_set[0], dtype=numx.double)
-        test_set = numx.array(test_set[0], dtype=numx.double)
-    train_lab = numx.array(train_lab, dtype=numx.int)
-    valid_lab = numx.array(valid_lab, dtype=numx.int)
-    test_lab = numx.array(test_lab, dtype=numx.int)
-    return train_set, train_lab, valid_set, valid_lab, test_set, test_lab
+        # Convert to double
+        train_x = np.array(train_set[0], dtype=np.float64)
+        valid_x = np.array(valid_set[0], dtype=np.float64)
+        test_x = np.array(test_set[0], dtype=np.float64)
+
+    train_lab = np.array(train_lab, dtype=np.int)
+    valid_lab = np.array(valid_lab, dtype=np.int)
+    test_lab = np.array(test_lab, dtype=np.int)
+
+    return train_x, train_lab, valid_x, valid_lab, test_x, test_lab
 
 
 def load_caltech(path):
@@ -272,22 +321,24 @@ def load_caltech(path):
             )
     print("-> loading data ... ")
     try:
-        train_set = scipy.io.loadmat(path)["train_data"]
-        test_set = scipy.io.loadmat(path)["test_data"]
-        valid_set = scipy.io.loadmat(path)["val_data"]
+        matobj = scipy.io.loadmat(path)
+        train_set = matobj["train_data"]
+        test_set = matobj["test_data"]
+        valid_set = matobj["val_data"]
 
-        train_lab = scipy.io.loadmat(path)["train_labels"]
-        test_lab = scipy.io.loadmat(path)["test_labels"]
-        valid_lab = scipy.io.loadmat(path)["val_labels"]
+        train_lab = matobj["train_labels"]
+        test_lab = matobj["test_labels"]
+        valid_lab = matobj["val_labels"]
         print("-> done!")
     except:
         raise Exception("-> File reading Error: ")
-    train_set = numx.array(train_set, dtype=numx.int)
-    valid_set = numx.array(valid_set, dtype=numx.int)
-    test_set = numx.array(test_set, dtype=numx.int)
-    train_lab = numx.array(train_lab, dtype=numx.int)
-    valid_lab = numx.array(valid_lab, dtype=numx.int)
-    test_lab = numx.array(test_lab, dtype=numx.int)
+
+    train_set = np.array(train_set, dtype=np.int)
+    valid_set = np.array(valid_set, dtype=np.int)
+    test_set = np.array(test_set, dtype=np.int)
+    train_lab = np.array(train_lab, dtype=np.int)
+    valid_lab = np.array(valid_lab, dtype=np.int)
+    test_lab = np.array(test_lab, dtype=np.int)
     return train_set, train_lab, valid_set, valid_lab, test_set, test_lab
 
 
@@ -305,8 +356,6 @@ def load_cifar(path, grayscale=True):
     """
     import tarfile
 
-    import os
-
     if not os.path.isfile(path):
         print("-> File not existing: " + path)
         try:
@@ -320,20 +369,28 @@ def load_cifar(path, grayscale=True):
     print("-> Extracting ...")
     try:
         tar = tarfile.open(path, "r:gz")
+        # Typically the tar members are:
+        # - [0]: folder name
+        # - data_batch_1 => [1 or 8]
+        # - data_batch_2 => [2 or 6]
+        # - data_batch_3 => [3 or 4]
+        # - data_batch_4 => [4 or 1]
+        # - data_batch_5 => [5 or 7]
+        # - test_batch => [3]
         batch_test = pickle.load(tar.extractfile(tar.getmembers()[3]))  # test
         print("-> test data extracted")
-        batch_valid = pickle.load(tar.extractfile(tar.getmembers()[7]))  # 5
+        batch_valid = pickle.load(tar.extractfile(tar.getmembers()[7]))  # data_batch_5
         print("-> validation data extracted")
-        batch_1 = pickle.load(tar.extractfile(tar.getmembers()[8]))  # 1
-        batch_2 = pickle.load(tar.extractfile(tar.getmembers()[6]))  # 2
-        batch_3 = pickle.load(tar.extractfile(tar.getmembers()[4]))  # 3
-        batch_4 = pickle.load(tar.extractfile(tar.getmembers()[1]))  # 4
+        batch_1 = pickle.load(tar.extractfile(tar.getmembers()[8]))  # data_batch_1
+        batch_2 = pickle.load(tar.extractfile(tar.getmembers()[6]))  # data_batch_2
+        batch_3 = pickle.load(tar.extractfile(tar.getmembers()[4]))  # data_batch_3
+        batch_4 = pickle.load(tar.extractfile(tar.getmembers()[1]))  # data_batch_4
         print("-> training data extracted")
 
-        train_set = numx.vstack(
+        train_set = np.vstack(
             (batch_1["data"], batch_2["data"], batch_3["data"], batch_4["data"])
         )
-        train_lab = numx.hstack(
+        train_lab = np.hstack(
             (batch_1["labels"], batch_2["labels"], batch_3["labels"], batch_4["labels"])
         )
         valid_set = batch_valid["data"]
@@ -342,28 +399,22 @@ def load_cifar(path, grayscale=True):
         test_lab = batch_test["labels"]
     except:
         raise Exception("-> File reading Error, failed to uncompress data. ")
+
     if grayscale:
-        train_set = (
-            0.3 * train_set[:, 0:1024]
-            + 0.59 * train_set[:, 1024:2048]
-            + 0.11 * train_set[:, 2048:3072]
-        )
-        valid_set = (
-            0.3 * valid_set[:, 0:1024]
-            + 0.59 * valid_set[:, 1024:2048]
-            + 0.11 * valid_set[:, 2048:3072]
-        )
-        test_set = (
-            0.3 * test_set[:, 0:1024]
-            + 0.59 * test_set[:, 1024:2048]
-            + 0.11 * test_set[:, 2048:3072]
-        )
-    train_set = numx.array(train_set, dtype=numx.double)
-    valid_set = numx.array(valid_set, dtype=numx.double)
-    test_set = numx.array(test_set, dtype=numx.double)
-    train_lab = numx.array(train_lab, dtype=numx.int)
-    valid_lab = numx.array(valid_lab, dtype=numx.int)
-    test_lab = numx.array(test_lab, dtype=numx.int)
+        train_set = _torch_grayscale(train_set)
+        valid_set = _torch_grayscale(valid_set)
+        test_set = _torch_grayscale(test_set)
+
+    # Cast to double
+    train_set = _torch_as_np_double(train_set)
+    valid_set = _torch_as_np_double(valid_set)
+    test_set = _torch_as_np_double(test_set)
+
+    # Cast labels to int
+    train_lab = np.array(train_lab, dtype=np.int)
+    valid_lab = np.array(valid_lab, dtype=np.int)
+    test_lab = np.array(test_lab, dtype=np.int)
+
     return train_set, train_lab, valid_set, valid_lab, test_set, test_lab
 
 
@@ -390,13 +441,12 @@ def load_natural_image_patches(path):
             raise Exception("Download failed, make sure you have internet connection!")
     print("-> loading data ... ")
     try:
-        # https://zenodo.org/record/167823/files/NaturalImage.mat
         data = scipy.io.loadmat(path)["rawImages"].T
         print("-> done!")
     except:
         raise Exception("-> File reading Error: ")
-    data = numx.array(data, dtype=numx.double)
-    return data
+
+    return _torch_as_np_double(data)
 
 
 def load_olivetti_faces(path, correct_orientation=True):
@@ -437,13 +487,14 @@ def load_olivetti_faces(path, correct_orientation=True):
             import pydeep.base.numpyextension as npext
 
             for i in range(data.shape[0]):
+                # The old code uses rotation 270 via numpyextension.
+                # We'll keep that for test invariance:
                 data[i] = npext.rotate(data[i].reshape(64, 64), 270).reshape(64 * 64)
             print("-> orientation corrected!")
         print("-> done!")
     except:
         raise Exception("-> File reading Error: ")
-    data = numx.array(data, dtype=numx.double)
-    return data
+    return _torch_as_np_double(data)
 
 
 def load_mlpython_dataset(dataset, path="uci_binary/", return_label=True):
@@ -461,7 +512,7 @@ def load_mlpython_dataset(dataset, path="uci_binary/", return_label=True):
     :return: Dataset [train_set, train_lab, valid_set, valid_lab, test_set, test_lab]
     :rtype: list of numpy arrays
     """
-    if path is "/":
+    if path == "/":
         path = ""
     try:
         print("-> loading data ... ")
@@ -483,19 +534,18 @@ def load_mlpython_dataset(dataset, path="uci_binary/", return_label=True):
         except:
             raise Exception("-> File reading Error: ")
         print("-> done!")
-    train_set = numx.array(dic["train"][0].mem_data[0], dtype=numx.double)
-    valid_set = numx.array(dic["valid"][0].mem_data[0], dtype=numx.double)
-    test_set = numx.array(dic["test"][0].mem_data[0], dtype=numx.double)
+
+    train_set = _torch_as_np_double(dic["train"][0].mem_data[0])
+    valid_set = _torch_as_np_double(dic["valid"][0].mem_data[0])
+    test_set = _torch_as_np_double(dic["test"][0].mem_data[0])
+
     if return_label:
-        train_lab = get_binary_label(
-            numx.array(dic["train"][0].mem_data[1], dtype=numx.int)
-        )
-        valid_lab = get_binary_label(
-            numx.array(dic["valid"][0].mem_data[1], dtype=numx.int)
-        )
-        test_lab = get_binary_label(
-            numx.array(dic["test"][0].mem_data[1], dtype=numx.int)
-        )
+        tr_labels = np.array(dic["train"][0].mem_data[1], dtype=np.int)
+        va_labels = np.array(dic["valid"][0].mem_data[1], dtype=np.int)
+        te_labels = np.array(dic["test"][0].mem_data[1], dtype=np.int)
+        train_lab = get_binary_label(tr_labels)
+        valid_lab = get_binary_label(va_labels)
+        test_lab = get_binary_label(te_labels)
         return train_set, train_lab, valid_set, valid_lab, test_set, test_lab
     else:
         return train_set, valid_set, test_set
@@ -606,6 +656,7 @@ def load_nips(
             "MLpython is missing see http://www.dmi.usherb.ca/~larocheh/mlpython/ "
             "you might need to specify the mlpython_path"
         )
+    # no labels => pass return_label=False
     return load_mlpython_dataset(nips, path, False)
 
 
