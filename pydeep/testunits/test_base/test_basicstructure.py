@@ -35,7 +35,7 @@
 import copy
 import sys
 import unittest
-from collections import Iterable
+from collections.abc import Iterable
 
 import numpy as numx
 
@@ -51,7 +51,7 @@ def compare_BipartiteGraph_after_removing(
     All the parameters of the two models are arranged as
     (changed_dimension, unchanged_dimension) for the easiness of comparison.
     """
-    if unit_type is "vis":
+    if unit_type == "vis":
         new_bias = new_model.bv.T
         new_offset = new_model.ov.T
         new_weights = new_model.w
@@ -62,7 +62,7 @@ def compare_BipartiteGraph_after_removing(
         old_weights = old_model.w
         old_changed_dim = old_model.input_dim
         old_unchanged_dim = old_model.output_dim
-    elif unit_type is "hid":
+    elif unit_type == "hid":
         new_bias = new_model.bh.T
         new_offset = new_model.oh.T
         new_weights = new_model.w.T
@@ -116,7 +116,7 @@ def compare_BipartiteGraph_after_adding(
     (changed_dimension, unchanged_dimension) for the easiness of comparison.
     """
     pos = position
-    if unit_type is "vis":
+    if unit_type == "vis":
         new_bias = new_model.bv.T
         new_offset = new_model.ov.T
         new_weights = new_model.w
@@ -127,7 +127,7 @@ def compare_BipartiteGraph_after_adding(
         old_weights = old_model.w
         old_changed_dim = old_model.input_dim
         old_unchanged_dim = old_model.output_dim
-    elif unit_type is "hid":
+    elif unit_type == "hid":
         new_bias = new_model.bh.T
         new_offset = new_model.oh.T
         new_weights = new_model.w.T
@@ -328,7 +328,7 @@ class Test_BipartiteGraph(unittest.TestCase):
             bpgraph = BipartiteGraph(number_visibles=2,
                                      number_hiddens=num_hid)
             bpgraph_old = copy.deepcopy(bpgraph)
-            if each_case is 'non-scalar':
+            if each_case == 'non-scalar':
                 bpgraph._add_hidden_units(num_new_hiddens=num_hid,
                                           position=pos,
                                           initial_weights=bpgraph_old.w,
@@ -700,5 +700,5 @@ class Test_StackOfBipartiteGraphs(unittest.TestCase):
         sys.stdout.flush()
 
 
-if __name__ is '__main__':
+if __name__ == '__main__':
     unittest.main()
