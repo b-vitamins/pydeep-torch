@@ -1,4 +1,5 @@
-"""This class contains some example toy problems for RBMs.
+"""
+This class contains some example toy problems for RBMs.
 
 :Implemented:
     - Bars and Stripes dataset
@@ -35,14 +36,45 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 """
 
-import numpy as numx
+import numpy as np
+import torch
 import pydeep.base.numpyextension as npext
 
 
-def generate_2d_mixtures(num_samples, mean=0.0, scale=numx.sqrt(2.0) / 2.0):
+##############################################################################
+# Torch-based small helpers returning NumPy arrays
+##############################################################################
+
+
+def _torch_matmul(a_np, b_np, transpose_b=False):
+    """
+    Returns (a_np) x (b_np) as a NumPy array using PyTorch matmul.
+    If transpose_b=True, we transpose b_np first.
+    """
+    a_t = torch.as_tensor(a_np, dtype=torch.float64)
+    b_t = torch.as_tensor(b_np, dtype=torch.float64)
+    if transpose_b:
+        b_t = b_t.transpose(0, 1)
+    out_t = a_t.matmul(b_t)
+    return out_t.cpu().numpy()
+
+
+def _torch_zeros(shape, dtype=np.float64):
+    """
+    Returns a NumPy array of zeros of the given shape, using Torch.
+    """
+    z_t = torch.zeros(shape, dtype=torch.float64)
+    return z_t.cpu().numpy().astype(dtype)
+
+
+##############################################################################
+# Toy Problem Generators
+##############################################################################
+
+
+def generate_2d_mixtures(num_samples, mean=0.0, scale=np.sqrt(2.0) / 2.0):
     """Creates a dataset containing 2D data points from a random mixtures of two independent Laplacian distributions.
 
     :Info: Every sample is a 2-dimensional mixture of two sources. The sources can either be super_gauss or sub_gauss.
@@ -60,14 +92,18 @@ def generate_2d_mixtures(num_samples, mean=0.0, scale=numx.sqrt(2.0) / 2.0):
     :return: Data and mixing matrix.
     :rtype: list of numpy arrays ([num samples, 2], [2,2])
     """
-    source = numx.concatenate(
+    # We keep the random calls from NumPy for test invariance
+    source = np.concatenate(
         (
-            numx.random.laplace(mean, scale, num_samples),
-            numx.random.laplace(mean, scale, num_samples),
+            np.random.laplace(mean, scale, num_samples),
+            np.random.laplace(mean, scale, num_samples),
         )
     ).reshape(num_samples, 2, order="F")
-    mixing_matrix = numx.random.rand(2, 2) - 0.5
-    mixture = numx.dot(source, mixing_matrix.T)
+
+    mixing_matrix = np.random.rand(2, 2) - 0.5
+
+    # use torch matmul instead of np.dot
+    mixture = _torch_matmul(source, mixing_matrix, transpose_b=True)
     return mixture, mixing_matrix
 
 
@@ -83,12 +119,14 @@ def generate_bars_and_stripes(length, num_samples):
     :return: Samples.
     :rtype: numpy array [num_samples, length*length]
     """
-    data = numx.zeros((num_samples, length * length))
+    data = _torch_zeros((num_samples, length * length))
     for i in range(num_samples):
-        values = numx.dot(
-            numx.random.randint(low=0, high=2, size=(length, 1)), numx.ones((1, length))
+        # values is [length, length]
+        values = np.dot(
+            np.random.randint(low=0, high=2, size=(length, 1)),
+            np.ones((1, length), dtype=float),
         )
-        if numx.random.random() > 0.5:
+        if np.random.random() > 0.5:
             values = values.T
         data[i, :] = values.reshape(length * length)
     return data
@@ -104,15 +142,16 @@ def generate_bars_and_stripes_complete(length):
     :rtype: numpy array [num_samples, length*length]
     """
     stripes = npext.generate_binary_code(length)
-    stripes = numx.repeat(stripes, length, 0)
+    stripes = np.repeat(stripes, length, 0)
     stripes = stripes.reshape(2**length, length * length)
 
     bars = npext.generate_binary_code(length)
     bars = bars.reshape(2**length * length, 1)
-    bars = numx.repeat(bars, length, 1)
+    bars = np.repeat(bars, length, 1)
     bars = bars.reshape(2**length, length * length)
-    return numx.vstack((stripes[0 : stripes.shape[0] - 1], bars[1 : bars.shape[0]]))
-    # return numx.vstack((stripes, bars)) # Tests have to match if changed to this.
+
+    # The original code returns stripes[0:-1] and bars[1:] stacked.
+    return np.vstack((stripes[0 : stripes.shape[0] - 1], bars[1 : bars.shape[0]]))
 
 
 def generate_shifting_bars(
@@ -138,13 +177,14 @@ def generate_shifting_bars(
     :return: Samples of the shifting bars dataset.
     :rtype: numpy array [samples, dimensions]
     """
-    data = numx.zeros((num_samples, length))
-    for i in range(0, num_samples):
-        index = numx.random.randint(0, length)
-        for b in range(0, bar_length):
-            data[i][(index + b) % length] = 1.0
+    data = _torch_zeros((num_samples, length))
+    for i in range(num_samples):
+        index = np.random.randint(0, length)
+        for b in range(bar_length):
+            data[i, (index + b) % length] = 1.0
+
     if random:
-        numx.random.shuffle(data)
+        np.random.shuffle(data)
     if flipped:
         data = (data + 1) % 2
     return data
@@ -169,12 +209,13 @@ def generate_shifting_bars_complete(length, bar_length, random=False, flipped=Fa
     :return: Complete shifting bars dataset.
     :rtype: numpy array [samples, dimensions]
     """
-    data = numx.zeros((length, length))
-    for i in range(0, length):
-        for b in range(0, bar_length):
-            data[i][(i + b) % length] = 1
+    data = _torch_zeros((length, length))
+    for i in range(length):
+        for b in range(bar_length):
+            data[i, (i + b) % length] = 1.0
+
     if random:
-        numx.random.shuffle(data)
+        np.random.shuffle(data)
     if flipped:
         data = (data + 1) % 2
     return data
