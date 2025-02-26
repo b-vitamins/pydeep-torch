@@ -1,4 +1,5 @@
-"""  Feed Forward Neural Network Model.
+"""
+  Feed Forward Neural Network Model.
 
     .. Note::
     
@@ -45,21 +46,55 @@
 
 """
 
-import numpy as numx
+import numpy as np
+import torch
+
+
+###############################################################################
+# Torch-based helpers
+###############################################################################
+
+
+def _as_torch_double(arr):
+    """Convert a NumPy array (or float) to a torch double tensor on CPU."""
+    return torch.as_tensor(arr, dtype=torch.float64)
+
+
+def _np_from_torch(tensor):
+    """Return a NumPy array from a torch Tensor on CPU."""
+    return tensor.cpu().numpy()
+
+
+def _mean_along_axis(x_np, axis=None):
+    """
+    Compute mean along a given axis using Torch, then return NumPy array or float.
+    If axis=None, returns a Python float of the global mean.
+    """
+    x_t = _as_torch_double(x_np)
+    if axis is None:
+        return float(torch.mean(x_t).item())
+    else:
+        out_t = torch.mean(x_t, dim=axis)
+        return _np_from_torch(out_t)
+
+
+###############################################################################
+# Model class (with minimal changes to use Torch for means, etc.)
+###############################################################################
 
 
 class Model(object):
     """Model which stores the layers."""
 
     def __init__(self, layers=[]):
-        """Constructor takes a list of layers or an empty list.
+        """
+        Constructor takes a list of layers or an empty list.
 
         :Parameters:
             layers:  List of layers or empty list.
-                    -type: list of layers.
+                     -type: list of layers.
 
         """
-        # Set variables
         self.layers = layers
         self.num_layers = len(self.layers)
         if self.num_layers > 0:
@@ -72,8 +107,8 @@ class Model(object):
 
     def clear_temp_data(self):
         """Sets all temp variables to None."""
-        for l in self.layers:
-            l.clear_temp_data()
+        for layer in self.layers:
+            layer.clear_temp_data()
 
     def calculate_cost(
         self,
@@ -84,19 +119,21 @@ class Model(object):
         costs_sparseness,
         reg_sparseness,
     ):
-        """Calculates the cost for given labels.
-            You need to call model.forward_propagate before!
+        """
+        Calculates the cost for given labels. You need to call model.forward_propagate before!
 
         :Parameters:
 
-            labels:             list of numpy arrays, entries can be None but the last layer needs labels!
+            labels:             list of numpy arrays, entries can be None but
+                                the last layer needs labels!
                                -type: list of None and/or numpy arrays
 
-            costs:              Cost functions for the layers, entries can be None but the last layer needs a cost
-                                function!
+            costs:              Cost functions for the layers, entries can be None
+                                but the last layer needs a cost function!
                                -type: list of None and/or pydeep.base.costfunction
 
-            reg_costs:          list of scalars controlling the strength of the cost functions.
+            reg_costs:          list of scalars controlling the strength
+                                of the cost functions.
                                -type: list of scalars
 
             desired_sparseness: List of desired sparseness values/average hidden activities.
@@ -110,26 +147,42 @@ class Model(object):
 
         :return:
             Cost values for the datapoints.
-           -type: numpy array [batchsize, 1]
-
+           -type: numpy array [batchsize, 1] or float
         """
         cost = 0.0
         # Add all intermediate costs
-        for l in range(self.num_layers):
-            if reg_sparseness[l] != 0.0:
-                mean_h = numx.atleast_2d(numx.mean(self.layers[l].temp_a, axis=0))
-                cost += reg_sparseness[l] * costs_sparseness[l].f(
-                    mean_h, desired_sparseness[l]
+        for layer_idx in range(self.num_layers):
+            # Sparse penalty
+            if reg_sparseness[layer_idx] != 0.0:
+                # Use torch-based mean for consistency
+                mean_h_t = _as_torch_double(self.layers[layer_idx].temp_a)
+                mean_h_t = torch.mean(
+                    mean_h_t, dim=0, keepdim=True
+                )  # shape [1, out_dim]
+                # Convert to NumPy for the cost function
+                mean_h = _np_from_torch(mean_h_t)
+                # Possibly ensure it's 2D
+                mean_h = np.atleast_2d(mean_h)
+                cost += reg_sparseness[layer_idx] * costs_sparseness[layer_idx].f(
+                    mean_h, desired_sparseness[layer_idx]
                 )
-            if reg_costs[l] != 0.0:
-                cost += reg_costs[l] * costs[l].f(self.layers[l].temp_a, labels[l])
+
+            # Standard cost
+            if reg_costs[layer_idx] != 0.0:
+                cost += reg_costs[layer_idx] * costs[layer_idx].f(
+                    self.layers[layer_idx].temp_a, labels[layer_idx]
+                )
+
         return cost
 
     def consistency_check(self):
-        """Raises exceptions if the network structure is incorrect, e.g. output dim layer 0 != input dim layer 1"""
+        """
+        Raises exceptions if the network structure is incorrect,
+        e.g. output dim layer 0 != input dim layer 1
+        """
         num_layers = len(self.layers)
         for i in range(num_layers - 1):
-            if not self.layers[i].output_dim == self.layers[i + 1].input_dim:
+            if self.layers[i].output_dim != self.layers[i + 1].input_dim:
                 raise Exception(
                     "Output dimensions mismatch layer "
                     + str(i)
@@ -140,7 +193,8 @@ class Model(object):
                 )
 
     def append_layer(self, layer):
-        """Appends a layer to the network.
+        """
+        Appends a layer to the network.
 
         :Parameters:
             layer:  Neural network layer.
@@ -148,15 +202,12 @@ class Model(object):
 
         """
         if self.num_layers > 0:
-            # Check consistency
-            if not self.layers[len(self.layers) - 1].output_dim == layer.input_dim:
+            if self.layers[-1].output_dim != layer.input_dim:
                 raise Exception(
                     "Output dimensions mismatch last layer and new layer !", UserWarning
                 )
         else:
-            # First layer set input dim
             self.input_dim = layer.input_dim
-        # Everything is okay, append layer
         self.output_dim = layer.output_dim
         self.layers.append(layer)
         self.num_layers += 1
@@ -173,45 +224,36 @@ class Model(object):
                 self.output_dim = 0
 
     def forward_propagate(self, data, corruptor=None):
-        """Propagates the inout data through the network.
+        """
+        Propagates the input data through the network.
 
         :Parameters:
             data:      Input data to propagate.
-                      -type: numpy array [batchsize, self.input_dim]
+                       -type: numpy array [batchsize, self.input_dim]
 
-            corruptor: None or list of corruptors, one for the input followed by one for every hidden layers output.
-                      -type: Noen or list of corruptors
+            corruptor: None or list of corruptors, one for the input followed by
+                       one for every hidden layer's output.
+                       -type: None or list of corruptors
 
         :Returns:
-            Output of the network, every unit state is also stored in the corresponding layer.
-           -type: numpy arrays [batchsize, self.output dim]
-
+            Output of the network. Every unit state is also stored in
+            the corresponding layer.
+           -type: numpy array [batchsize, self.output_dim]
         """
-        # No corruptor just progate data as is
         if corruptor is None:
             output = data
-            for l in range(len(self.layers)):
-                output = self.layers[l].forward_propagate(output)
+            for layer_idx in range(self.num_layers):
+                output = self.layers[layer_idx].forward_propagate(output)
         else:
             # copy data
-            output = numx.copy(data)
-            for l in range(self.num_layers):
-                # If corruptor is given , distored activations
-                if corruptor[l] is not None:
-                    output = corruptor[l].corrupt(output)
-                output = self.layers[l].forward_propagate(output)
+            output = np.copy(data)
+            for layer_idx in range(self.num_layers):
+                if corruptor[layer_idx] is not None:
+                    output = corruptor[layer_idx].corrupt(output)
+                output = self.layers[layer_idx].forward_propagate(output)
+            # Possibly corrupt final output
             if corruptor[self.num_layers] is not None:
                 output = corruptor[self.num_layers].corrupt(output)
-            """
-            output = numx.copy(data)
-            if corruptor[0] is not None:
-                output = corruptor[0].corrupt(output)
-            for l in range(self.num_layers):
-                # If corruptor is given , distored activations
-                if corruptor[l+1] is not None:
-                    output = corruptor[l+1].corrupt(output)
-                output = self.layers[l].forward_propagate(output)
-            """
         return output
 
     def _get_gradients(
@@ -224,19 +266,22 @@ class Model(object):
         reg_sparseness,
         check_gradient=False,
     ):
-        """Calculates the gradient for the network (Used in finit_differences()).
-            You need to call model.forward_propagate before!
+        """
+        Calculates the gradient for the network (Used in finit_differences()).
+        You need to call model.forward_propagate before!
 
         :Parameters:
 
-            labels:             list of numpy arrays, entries can be None but the last layer needs labels!
+            labels:             list of numpy arrays, entries can be None but
+                                the last layer needs labels!
                                -type: list of None and/or numpy arrays
 
-            costs:              Cost functions for the layers, entries can be None but the last layer needs a cost
-                                function!
+            costs:              Cost functions for the layers, entries can be None
+                                but the last layer needs a cost function!
                                -type: list of None and/or pydeep.base.costfunction
 
-            reg_costs:          list of scalars controlling the strength of the cost functions.
+            reg_costs:          list of scalars controlling the strength
+                                of the cost functions.
                                -type: list of scalars
 
             desired_sparseness: List of desired sparseness values/average hidden activities.
@@ -248,35 +293,34 @@ class Model(object):
             reg_sparseness:     Strength of the sparseness term.
                                -type: list of scalars
 
-            check_gradient:     Flase for gradient checking mode.
+            check_gradient:     False for gradient checking mode.
                                -type: bool
 
         :return:
             gradient for the network.
            -type: list of list of numpy arrays
-
         """
         grad = []
         deltas = None
-        # Go from top layer to last layer
-        for l in range(self.num_layers - 1, -1, -1):
-            # Caluclate the delta values
-            deltas = self.layers[l]._get_deltas(
+        # Go from top layer to first
+        for layer_idx in range(self.num_layers - 1, -1, -1):
+            # Calculate the delta values
+            deltas = self.layers[layer_idx]._get_deltas(
                 deltas=deltas,
-                labels=labels[l],
-                cost=costs[l],
-                reg_cost=reg_costs[l],
-                desired_sparseness=desired_sparseness[l],
-                cost_sparseness=costs_sparseness[l],
-                reg_sparseness=reg_sparseness[l],
+                labels=labels[layer_idx],
+                cost=costs[layer_idx],
+                reg_cost=reg_costs[layer_idx],
+                desired_sparseness=desired_sparseness[layer_idx],
+                cost_sparseness=costs_sparseness[layer_idx],
+                reg_sparseness=reg_sparseness[layer_idx],
                 check_gradient=check_gradient,
             )
-            # backprop the error if it is not first/bottom most layer.
-            if l > 0:
-                deltas = self.layers[l]._backward_propagate()
+            # backprop the error if it is not the bottom layer
+            if layer_idx > 0:
+                deltas = self.layers[layer_idx]._backward_propagate()
 
-            # Now we are ready to calculate the gradient
-            grad.insert(0, self.layers[l]._calculate_gradient())
+            # Now we can calculate the gradient
+            grad.insert(0, self.layers[layer_idx]._calculate_gradient())
         return grad
 
     def finit_differences(
@@ -290,7 +334,8 @@ class Model(object):
         costs_sparseness,
         reg_sparseness,
     ):
-        """Calculates the finite differences for the networks gradient.
+        """
+        Calculates the finite differences for the network's gradient.
 
         :Parameters:
 
@@ -300,14 +345,16 @@ class Model(object):
             data:               Input data of the network.
                                -type: numpy arrays
 
-            labels:             list of numpy arrays, entries can be None but the last layer needs labels!
+            labels:             list of numpy arrays, entries can be None but
+                                the last layer needs labels!
                                -type: list of None and/or numpy arrays
 
-            costs:              Cost functions for the layers, entries can be None but the last layer needs a cost
-                                function!
+            costs:              Cost functions for the layers, entries can be None
+                                but the last layer needs a cost function!
                                -type: list of None and/or pydeep.base.costfunction
 
-            reg_costs:          list of scalars controlling the strength of the cost functions.
+            reg_costs:          list of scalars controlling the strength
+                                of the cost functions.
                                -type: list of scalars
 
             desired_sparseness: List of desired sparseness values/average hidden activities.
@@ -322,29 +369,29 @@ class Model(object):
         :return:
             Finite differences W,b, max W, max b
            -type: list of list of numpy arrays
-
         """
-        data = numx.atleast_2d(data)
+        data = np.atleast_2d(data)
         # Lists of the difference
         diffs_w = []
         diffs_b = []
         # Vars for tracking the maximal value
         max_diffb = -99999
         max_diffw = -99999
+
         # Loop through all layers
-        for l in range(len(self.layers)):
-            # Select curretn layer and initialize temp variable for the differences
-            layer = self.layers[l]
-            diff_w = numx.zeros(layer.weights.shape)
-            diff_b = numx.zeros(layer.bias.shape)
+        for layer_idx in range(len(self.layers)):
+            layer = self.layers[layer_idx]
+            diff_w = np.zeros(layer.weights.shape)
+            diff_b = np.zeros(layer.bias.shape)
+
             # Loop over each weight
             for i in range(layer.input_dim):
                 for j in range(layer.output_dim):
-                    # Only caluclate the dinite difference if the will exist in the model, that is the connection matrix
+                    # Only calculate if there's a valid connection
                     if layer.connections is None or (
                         layer.connections is not None and layer.connections[i][j] > 0.0
                     ):
-                        # Propagate through and calculate gradient
+                        # Forward + gradient
                         self.forward_propagate(data=data)
                         grad_w_ij = self._get_gradients(
                             labels=labels,
@@ -354,8 +401,8 @@ class Model(object):
                             costs_sparseness=costs_sparseness,
                             reg_sparseness=reg_sparseness,
                             check_gradient=True,
-                        )[l][0][i][j]
-                        # Add delta to the current weight, propagate through and calculate cost
+                        )[layer_idx][0][i][j]
+                        # + delta
                         layer.weights[i, j] += delta
                         self.forward_propagate(data)
                         E_pos = self.calculate_cost(
@@ -366,7 +413,7 @@ class Model(object):
                             costs_sparseness=costs_sparseness,
                             reg_sparseness=reg_sparseness,
                         )
-                        # Subtract 2 times delta from the current weight (subtract 1 times the original), propagate through and calculate cost
+                        # - 2*delta
                         layer.weights[i, j] -= 2 * delta
                         self.forward_propagate(data)
                         E_neg = self.calculate_cost(
@@ -377,18 +424,15 @@ class Model(object):
                             costs_sparseness=costs_sparseness,
                             reg_sparseness=reg_sparseness,
                         )
-                        # Restore the original weight
+                        # Restore
                         layer.weights[i, j] += delta
-                        # Calculate the difference
                         approx = (E_pos - E_neg) / (2.0 * delta)
-                        # Calculate the absolute difference
-                        diff_w[i, j] = numx.abs(grad_w_ij - approx)
-                        # Update the maximal value
-                        if numx.max(numx.abs(diff_w[i, j])) > max_diffw:
-                            max_diffw = numx.abs(diff_w[i, j])
+                        diff_w[i, j] = np.abs(grad_w_ij - approx)
+                        if np.abs(diff_w[i, j]) > max_diffw:
+                            max_diffw = np.abs(diff_w[i, j])
+
             # Loop over each bias
             for j in range(layer.output_dim):
-                # Propagate through and calculate gradient
                 self.forward_propagate(data)
                 grad_b_j = self._get_gradients(
                     labels=labels,
@@ -398,8 +442,8 @@ class Model(object):
                     costs_sparseness=costs_sparseness,
                     reg_sparseness=reg_sparseness,
                     check_gradient=True,
-                )[l][1][0][j]
-                # Add delta to the current bias, propagate through and calculate cost
+                )[layer_idx][1][0][j]
+                # + delta
                 layer.bias[0, j] += delta
                 self.forward_propagate(data)
                 E_pos = self.calculate_cost(
@@ -410,7 +454,7 @@ class Model(object):
                     costs_sparseness=costs_sparseness,
                     reg_sparseness=reg_sparseness,
                 )
-                # Subtract 2 times delta from the current bias (subtract 1 times the original), propagate through and calculate cost
+                # - 2*delta
                 layer.bias[0, j] -= 2 * delta
                 self.forward_propagate(data)
                 E_neg = self.calculate_cost(
@@ -421,16 +465,14 @@ class Model(object):
                     costs_sparseness=costs_sparseness,
                     reg_sparseness=reg_sparseness,
                 )
-                # Restore the original weight
+                # restore
                 layer.bias[0, j] += delta
                 approx = (E_pos - E_neg) / (2.0 * delta)
-                # Calculate the absolute difference
-                diff_b[0, j] = numx.abs(grad_b_j - approx)
-                # Update the maximal value
-                if numx.max(numx.abs(diff_b[0, j])) > max_diffb:
-                    max_diffb = numx.abs(diff_b[0, j])
-            # Append the difference matrices
+                diff_b[0, j] = np.abs(grad_b_j - approx)
+                if np.abs(diff_b[0, j]) > max_diffb:
+                    max_diffb = np.abs(diff_b[0, j])
+
             diffs_w.append(diff_w)
             diffs_b.append(diff_b)
-        # Return all diffs as well as the maximum weight and bias differences
+
         return diffs_w, diffs_b, max_diffw, max_diffb
